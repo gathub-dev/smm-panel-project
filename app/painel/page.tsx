@@ -144,7 +144,7 @@ export default function PainelPage() {
       const response = await fetch('/api/public/services')
       const data = await response.json()
       
-      if (data.success) {
+      if (data.success && Array.isArray(data.services)) {
         setServices(data.services)
         
         // Organizar por categoria
@@ -159,11 +159,16 @@ export default function PainelPage() {
         
         setServicesByCategory(categorized)
       } else {
-        toast.error('Erro ao carregar serviços')
+        console.error('Resposta da API inválida:', data)
+        toast.error(data.error || 'Erro ao carregar serviços')
+        setServices([])
+        setServicesByCategory({})
       }
     } catch (error) {
       console.error('Erro ao carregar serviços:', error)
-      toast.error('Erro ao carregar serviços')
+      toast.error('Erro ao conectar com o servidor')
+      setServices([])
+      setServicesByCategory({})
     } finally {
       setLoading(false)
     }

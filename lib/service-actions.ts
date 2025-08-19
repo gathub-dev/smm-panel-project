@@ -232,11 +232,11 @@ async function processService(
       
     } catch (error) {
       console.error(`❌ [SYNC-TRANSLATE] Erro na tradução:`, error)
-      // Se tudo falhar, usar dados originais
+      // Se tudo falhar, usar dados originais MAS SEMPRE limpar informações internas
       translatedData = {
-        name: service.name,
-        description: service.description || service.name,
-        category: service.category || 'Other',
+        name: translationService.cleanProviderInfo(service.name),
+        description: translationService.cleanProviderInfo(service.description || service.name),
+        category: translationService.cleanProviderInfo(service.category || 'Other'),
         originalName: undefined,
         originalDescription: undefined,
         originalCategory: undefined

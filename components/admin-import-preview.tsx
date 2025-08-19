@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Table, 
   TableBody, 
@@ -58,13 +59,14 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
   const [providerFilter, setProviderFilter] = useState<'mtp' | 'jap'>('mtp')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [searchFilter, setSearchFilter] = useState('')
-  const [limitFilter, setLimitFilter] = useState('100')
+  const [limitFilter, setLimitFilter] = useState('all')
+  const [onlyNewFilter, setOnlyNewFilter] = useState(false)
 
   useEffect(() => {
     if (open) {
       loadServicesFromAPI()
     }
-  }, [providerFilter, open])
+  }, [providerFilter, onlyNewFilter, open])
 
   useEffect(() => {
     applyFilters()
@@ -80,7 +82,8 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
         },
         body: JSON.stringify({
           provider: providerFilter,
-          action: 'services'
+          action: 'services',
+          onlyNew: onlyNewFilter
         })
       })
       
@@ -139,8 +142,10 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
     }
     
     // Limite de resultados
-    const limit = parseInt(limitFilter) || 100
-    filtered = filtered.slice(0, limit)
+    if (limitFilter !== 'all') {
+      const limit = parseInt(limitFilter) || 100
+      filtered = filtered.slice(0, limit)
+    }
     
     setFilteredServices(filtered)
   }
@@ -251,7 +256,7 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
               <h3 className="text-lg font-semibold">Filtros de Importação</h3>
             </div>
         
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-5 gap-4">
             {/* Provedor */}
             <div className="space-y-2">
               <Label>Provedor</Label>
@@ -306,8 +311,24 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
                   <SelectItem value="100">100 serviços</SelectItem>
                   <SelectItem value="250">250 serviços</SelectItem>
                   <SelectItem value="500">500 serviços</SelectItem>
+                  <SelectItem value="all">Todos os serviços</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Filtro apenas novos */}
+            <div className="space-y-2">
+              <Label>Filtros</Label>
+              <div className="flex items-center space-x-2 h-10">
+                <Checkbox
+                  id="only-new"
+                  checked={onlyNewFilter}
+                  onCheckedChange={(checked) => setOnlyNewFilter(checked === true)}
+                />
+                <Label htmlFor="only-new" className="text-sm font-normal cursor-pointer">
+                  Apenas novos
+                </Label>
+              </div>
             </div>
           </div>
 

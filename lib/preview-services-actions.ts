@@ -3,6 +3,7 @@
 import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { APIManager } from "./providers/api-manager"
+import { translationService } from "./translation-service"
 
 /**
  * Preview de serviços da API sem importar
@@ -11,6 +12,7 @@ export async function previewServicesFromAPI(options: {
   provider?: 'all' | 'mtp' | 'jap'
   maxServices?: number
   category?: string
+  onlyNew?: boolean
 }) {
   console.log('🔍 PREVIEW DE SERVIÇOS DA API')
   console.log('Opções:', options)
@@ -48,11 +50,11 @@ export async function previewServicesFromAPI(options: {
         console.log(`📊 MTP: ${mtpServices.length} serviços encontrados`)
         
         const processedMTP = mtpServices.map(service => ({
-          id: service.service,
-          name: service.name,
-          description: service.description || '',
+          id: String(service.service), // Garantir que seja string para comparação
+          name: translationService.cleanProviderInfo(service.name),
+          description: translationService.cleanProviderInfo(service.description || ''),
           provider: 'mtp',
-          category: service.category || 'Outros',
+          category: translationService.cleanProviderInfo(service.category || 'Outros'),
           rate: parseFloat(service.rate) || 0,
           min_quantity: service.min || 1,
           max_quantity: service.max || 1000000,
@@ -73,11 +75,11 @@ export async function previewServicesFromAPI(options: {
         console.log(`📊 JAP: ${japServices.length} serviços encontrados`)
         
         const processedJAP = japServices.map(service => ({
-          id: service.service,
-          name: service.name,
-          description: service.description || '',
+          id: String(service.service), // Garantir que seja string para comparação
+          name: translationService.cleanProviderInfo(service.name),
+          description: translationService.cleanProviderInfo(service.description || ''),
           provider: 'jap',
-          category: service.category || 'Outros',
+          category: translationService.cleanProviderInfo(service.category || 'Outros'),
           rate: parseFloat(service.rate) || 0,
           min_quantity: service.min || 1,
           max_quantity: service.max || 1000000,
@@ -95,6 +97,47 @@ export async function previewServicesFromAPI(options: {
       allServices = allServices.filter(service => 
         service.category.toLowerCase().includes(options.category!.toLowerCase())
       )
+    }
+
+    // Filtrar apenas serviços não importados se solicitado
+    if (options.onlyNew) {
+      console.log('🔍 Filtrando apenas serviços não importados...')
+      
+      // Buscar todos os provider_service_id já importados
+      const { data: existingServices, error: existingError } = await supabase
+        .from('services')
+        .select('provider_service_id, provider')
+      
+      if (existingError) {
+        console.error('❌ Erro ao buscar serviços existentes:', existingError)
+      } else {
+        console.log(`🔍 Encontrados ${existingServices.length} serviços já importados no banco`)
+        
+        const existingIds = new Set(
+          existingServices.map(s => `${s.provider}_${String(s.provider_service_id)}`)
+        )
+        
+        console.log('📋 Primeiros 10 IDs existentes:', Array.from(existingIds).slice(0, 10))
+        console.log('📋 Primeiros 5 serviços da API:', allServices.slice(0, 5).map(s => ({
+          provider: s.provider,
+          id: s.id,
+          name: s.name.substring(0, 50),
+          chaveComparacao: `${s.provider}_${s.id}`
+        })))
+        
+        const beforeCount = allServices.length
+        allServices = allServices.filter(service => {
+          const serviceKey = `${service.provider}_${service.id}`
+          const exists = existingIds.has(serviceKey)
+          if (exists) {
+            console.log(`⏭️ Pulando serviço já importado: ${serviceKey} - ${service.name.substring(0, 30)}`)
+          }
+          return !exists
+        })
+        const afterCount = allServices.length
+        
+        console.log(`📊 Filtro aplicado: ${beforeCount} → ${afterCount} serviços (${beforeCount - afterCount} já importados)`)
+      }
     }
 
     // Limitar quantidade se especificado

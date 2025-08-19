@@ -100,8 +100,8 @@ function autoTranslateCategory(category: string): string {
   
   // Traduções específicas completas primeiro
   const exactTranslations: Record<string, string> = {
-    'Working After Update! - (Last Update:18/08/2025) (Provided By MTP)': 'Funcionando Após Atualização! - (Última Atualização: 18/08/2025) (Fornecido por MTP)',
-    'MTP Promotions': 'Promoções MTP',
+    'Working After Update! - (Last Update:18/08/2025) (Provided By MTP)': 'Funcionando após atualização',
+    'MTP Promotions': 'Promoções',
     'Instagram Likes': 'Curtidas Instagram',
     'Instagram Followers': 'Seguidores Instagram',
     'Instagram Views': 'Visualizações Instagram',

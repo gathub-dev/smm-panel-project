@@ -144,7 +144,6 @@ export class TranslationService {
     
     // Verificar se já está em português
     const isAlreadyPortuguese = this.isPortuguese(text)
-    console.log(`🔍 [TRANSLATE] Texto "${text}" já está em português?`, isAlreadyPortuguese)
     if (isAlreadyPortuguese) return text
     
     // Verificar cache
@@ -156,24 +155,23 @@ export class TranslationService {
     // Tentar tradução manual primeiro (mais rápido)
     const manualTranslation = this.getManualTranslation(text)
     if (manualTranslation) {
-      this.cache.set(cacheKey, manualTranslation)
-      return manualTranslation
+      const cleanedManual = this.cleanProviderInfo(manualTranslation)
+      this.cache.set(cacheKey, cleanedManual)
+      return cleanedManual
     }
 
     // TEMPORARIAMENTE: Usar apenas tradução básica até resolver problema da biblioteca
-    console.log(`🔧 [TRANSLATE] Usando tradução básica (biblioteca com problemas): "${text}"`)
     const basicTranslation = this.getBasicTranslation(text)
-    console.log(`📊 [TRANSLATE] Resultado da tradução básica: "${text}" → "${basicTranslation}"`)
+    
+    // Limpar informações internas dos provedores
+    const cleanedTranslation = this.cleanProviderInfo(basicTranslation)
     
     // Verificar se realmente traduziu
-    if (basicTranslation !== text) {
-      console.log(`✅ [TRANSLATE] Tradução aplicada com sucesso!`)
-    } else {
-      console.log(`⚠️ [TRANSLATE] Nenhuma tradução foi aplicada`)
-    }
+    if (cleanedTranslation !== text) {
+      }
     
-    this.cache.set(cacheKey, basicTranslation)
-    return basicTranslation
+    this.cache.set(cacheKey, cleanedTranslation)
+    return cleanedTranslation
 
     // TODO: Reativar Google Translate quando biblioteca estiver funcionando
     /*
@@ -320,7 +318,6 @@ export class TranslationService {
     translated = translated.replace(/max\s+(\d+[km]?)/gi, 'Máx $1')
     translated = translated.replace(/min\s+(\d+[km]?)/gi, 'Mín $1')
     
-    console.log(`🔧 [BASIC-TRANSLATE] Tradução básica aplicada: "${text}" → "${translated}"`)
     
     return translated
   }
@@ -361,23 +358,80 @@ export class TranslationService {
         serviceData.category ? this.translateToPortuguese(serviceData.category) : undefined
       ])
 
+      // Limpar informações internas dos provedores dos textos traduzidos
+      const cleanedName = this.cleanProviderInfo(translatedName)
+      const cleanedDescription = translatedDescription ? this.cleanProviderInfo(translatedDescription) : undefined
+      const cleanedCategory = translatedCategory ? this.cleanProviderInfo(translatedCategory) : undefined
+
       return {
-        name: translatedName,
-        description: translatedDescription,
-        category: translatedCategory,
+        name: cleanedName,
+        description: cleanedDescription,
+        category: cleanedCategory,
         // Manter originais para referência
-        originalName: originalName !== translatedName ? originalName : undefined,
-        originalDescription: originalDescription !== translatedDescription ? originalDescription : undefined,
-        originalCategory: originalCategory !== translatedCategory ? originalCategory : undefined
+        originalName: originalName !== cleanedName ? originalName : undefined,
+        originalDescription: originalDescription !== cleanedDescription ? originalDescription : undefined,
+        originalCategory: originalCategory !== cleanedCategory ? originalCategory : undefined
       }
     } catch (error) {
       console.log('⚠️ Erro na tradução em lote:', error)
+      // Mesmo em caso de erro, limpar as informações internas
       return {
-        name: serviceData.name,
-        description: serviceData.description,
-        category: serviceData.category
+        name: this.cleanProviderInfo(serviceData.name),
+        description: serviceData.description ? this.cleanProviderInfo(serviceData.description) : undefined,
+        category: serviceData.category ? this.cleanProviderInfo(serviceData.category) : undefined
       }
     }
+  }
+
+  /**
+   * Limpar informações internas dos provedores dos textos
+   * Remove referências a MTP, JAP e outras informações que clientes não devem ver
+   */
+  cleanProviderInfo(text: string): string {
+    if (!text) return text
+
+    let cleaned = text
+    
+    // Remover referências específicas a provedores (várias variações)
+    cleaned = cleaned.replace(/\(fornecido por MTP\!?\)/gi, '')
+    cleaned = cleaned.replace(/\(provided by MTP\!?\)/gi, '')
+    cleaned = cleaned.replace(/\(fornecido por JAP\!?\)/gi, '')
+    cleaned = cleaned.replace(/\(provided by JAP\!?\)/gi, '')
+    
+    // Remover variações sem parênteses
+    cleaned = cleaned.replace(/fornecido por MTP\!?/gi, '')
+    cleaned = cleaned.replace(/provided by MTP\!?/gi, '')
+    cleaned = cleaned.replace(/fornecido por JAP\!?/gi, '')
+    cleaned = cleaned.replace(/provided by JAP\!?/gi, '')
+    
+    // Remover informações de atualização com referências a provedores
+    cleaned = cleaned.replace(/- \(última atualização:.*?\) \(fornecido por \w+\!?\)/gi, '')
+    cleaned = cleaned.replace(/- \(last update:.*?\) \(provided by \w+\!?\)/gi, '')
+    cleaned = cleaned.replace(/\(última atualização:.*?\) \(fornecido por \w+\!?\)/gi, '')
+    cleaned = cleaned.replace(/\(last update:.*?\) \(provided by \w+\!?\)/gi, '')
+    
+    // Remover padrões específicos encontrados
+    cleaned = cleaned.replace(/working after update.*?provided by \w+\!?/gi, '')
+    cleaned = cleaned.replace(/funcionando após atualização.*?fornecido por \w+\!?/gi, '')
+    
+    // Remover outras referências internas
+    cleaned = cleaned.replace(/\bMTP\!\b/g, '')
+    cleaned = cleaned.replace(/\bJAP\!\b/g, '')
+    cleaned = cleaned.replace(/\bMTP\b\!/g, '') // MTP seguido de !
+    cleaned = cleaned.replace(/\bJAP\b\!/g, '') // JAP seguido de !
+    
+    // Remover traços e exclamações órfãos
+    cleaned = cleaned.replace(/\s*-\s*\(fornecido por.*?\)/gi, '')
+    cleaned = cleaned.replace(/\s*-\s*\(provided by.*?\)/gi, '')
+    
+    // Limpar espaços extras e pontuação dupla
+    cleaned = cleaned.replace(/\s+/g, ' ')
+    cleaned = cleaned.replace(/\s*-\s*$/, '') // Remove traços no final
+    cleaned = cleaned.replace(/\s*\!\s*$/, '') // Remove exclamações no final
+    cleaned = cleaned.replace(/\s*-\s*\!\s*$/, '') // Remove traço + exclamação no final
+    cleaned = cleaned.trim()
+    
+    return cleaned
   }
 
   /**
