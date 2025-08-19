@@ -60,6 +60,7 @@
     "sonner": "latest",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "translate-google": "^1.5.0",
     "zod": "3.25.67"
   },
   "devDependencies": {

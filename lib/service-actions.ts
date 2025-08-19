@@ -9,6 +9,7 @@ import { getExchangeRate } from "./currency-actions"
 import { convertUsdToBrl, formatBRL, formatUSD } from "./currency-utils"
 import { getBothCategoryVersions } from "./category-translations"
 import { getSetting } from "./settings-actions"
+import { translationService } from "./translation-service"
 
 /**
  * Sincronizar todos os serviços dos provedores
@@ -80,7 +81,7 @@ export async function syncAllServices() {
  * Extrair informações dinamicamente do serviço
  */
 function extractServiceInfo(serviceName: string, category: string) {
-  // Usar a categoria original como base, sem mapeamento manual
+  // Usar a categoria (já traduzida) como base
   const originalCategory = category || 'Other'
   const categoryVersions = getBothCategoryVersions(originalCategory)
   
@@ -146,8 +147,15 @@ async function processService(
       .eq('provider', provider)
       .single()
 
-    // Extrair informações dinamicamente
-    const serviceInfo = extractServiceInfo(service.name, service.category || '')
+    // 🌍 TRADUÇÃO AUTOMÁTICA - Traduzir dados do serviço para português
+    const translatedData = await translationService.translateServiceData({
+      name: service.name,
+      description: service.description,
+      category: service.category
+    })
+
+    // Extrair informações dinamicamente usando dados traduzidos
+    const serviceInfo = extractServiceInfo(translatedData.name, translatedData.category || '')
     
     // Obter IDs de plataforma e tipo (criar se necessário)
     const [platformId, serviceTypeId] = await Promise.all([
@@ -162,14 +170,18 @@ async function processService(
     const serviceData = {
       provider,
       provider_service_id: service.service,
-      name: service.name,
-      description: service.description || service.name,
-      category: serviceInfo.category,
+      name: translatedData.name, // Nome traduzido
+      description: translatedData.description || translatedData.name, // Descrição traduzida
+      category: serviceInfo.category, // Categoria traduzida
       platform: serviceInfo.platform,
       shop_category: serviceInfo.serviceType,
       combined_category: `${serviceInfo.platform} - ${serviceInfo.serviceType}`,
       platform_id: platformId,
       service_type_id: serviceTypeId,
+      // Campos para manter originais (para referência)
+      original_name: translatedData.originalName,
+      original_description: translatedData.originalDescription,
+      original_category: translatedData.originalCategory,
       provider_rate: providerRateUSD,
       rate: finalRateBRL,
       markup_type: 'percentage',
@@ -248,7 +260,6 @@ export async function updateService(serviceId: string, data: {
   )
 
   try {
-    console.log(`🔧 [updateService] Atualizando serviço ${serviceId}:`, data)
 
     const { data: updatedData, error } = await supabase
       .from('services')
@@ -260,12 +271,9 @@ export async function updateService(serviceId: string, data: {
       .select()
 
     if (error) {
-      console.log(`❌ [updateService] Erro do Supabase:`, error)
       throw error
     }
-
-    console.log(`✅ [updateService] Serviço atualizado com sucesso:`, updatedData)
-
+    
     revalidatePath("/dashboard/admin")
     revalidatePath("/dashboard/services")
 
@@ -547,5 +555,131 @@ export async function getServiceCategories() {
     return { success: true, categories }
   } catch (error) {
     return { error: `Erro ao buscar categorias: ${error}` }
+  }
+}
+
+/**
+ * 🌍 TRADUÇÃO EM SEGUNDO PLANO
+ * Traduzir serviços existentes que ainda não foram traduzidos
+ */
+export async function translateExistingServices(batchSize: number = 50) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  try {
+    // Buscar serviços que ainda não foram traduzidos
+    // (aqueles que não têm original_name preenchido)
+    const { data: services, error } = await supabase
+      .from('services')
+      .select('id, name, description, category')
+      .is('original_name', null) // Ainda não traduzidos
+      .eq('status', 'active')
+      .limit(batchSize)
+
+    if (error) throw error
+    if (!services?.length) {
+      return { success: true, message: 'Todos os serviços já estão traduzidos', translated: 0 }
+    }
+
+    console.log(`🌍 Traduzindo ${services.length} serviços em segundo plano...`)
+    
+    let translatedCount = 0
+
+    // Processar em lotes menores para evitar rate limiting
+    const miniBatchSize = 10
+    for (let i = 0; i < services.length; i += miniBatchSize) {
+      const batch = services.slice(i, i + miniBatchSize)
+      
+      await Promise.all(batch.map(async (service) => {
+        try {
+          // Traduzir dados do serviço
+          const translatedData = await translationService.translateServiceData({
+            name: service.name,
+            description: service.description,
+            category: service.category
+          })
+
+          // Atualizar apenas se houve tradução
+          if (translatedData.originalName || translatedData.originalDescription || translatedData.originalCategory) {
+            const { error: updateError } = await supabase
+              .from('services')
+              .update({
+                name: translatedData.name,
+                description: translatedData.description,
+                category: translatedData.category,
+                original_name: translatedData.originalName,
+                original_description: translatedData.originalDescription,
+                original_category: translatedData.originalCategory,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', service.id)
+
+            if (!updateError) {
+              translatedCount++
+              console.log(`  ✅ Traduzido: ${service.name} → ${translatedData.name}`)
+            }
+          } else {
+            // Marcar como "já em português" para não processar novamente
+            await supabase
+              .from('services')
+              .update({ original_name: '' }) // String vazia indica "já em português"
+              .eq('id', service.id)
+          }
+        } catch (error) {
+          console.log(`  ⚠️ Erro ao traduzir serviço ${service.id}:`, error)
+        }
+      }))
+
+      // Pequena pausa entre lotes para evitar rate limiting
+      if (i + miniBatchSize < services.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+
+    return {
+      success: true,
+      translated: translatedCount,
+      message: `${translatedCount} serviços traduzidos com sucesso`
+    }
+  } catch (error) {
+    return { error: `Erro na tradução em segundo plano: ${error}` }
+  }
+}
+
+/**
+ * Obter estatísticas de tradução
+ */
+export async function getTranslationStats() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  try {
+    const [totalResult, translatedResult, pendingResult] = await Promise.all([
+      supabase.from('services').select('*', { count: 'exact', head: true }),
+      supabase.from('services').select('*', { count: 'exact', head: true }).not('original_name', 'is', null),
+      supabase.from('services').select('*', { count: 'exact', head: true }).is('original_name', null)
+    ])
+
+    const total = totalResult.count || 0
+    const translated = translatedResult.count || 0
+    const pending = pendingResult.count || 0
+
+    return {
+      success: true,
+      stats: {
+        total,
+        translated,
+        pending,
+        translationProgress: total > 0 ? Math.round((translated / total) * 100) : 0
+      }
+    }
+  } catch (error) {
+    return { error: `Erro ao obter estatísticas de tradução: ${error}` }
   }
 } 
