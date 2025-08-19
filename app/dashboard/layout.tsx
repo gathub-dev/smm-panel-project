@@ -29,7 +29,6 @@ export default async function DashboardLayout({
   // SOLUÇÃO TEMPORÁRIA: Criar perfil mock para evitar problema de RLS
   // Verificar se é admin pelo email (evita problema de recursão RLS)
   const isAdmin = await checkIsAdmin()
-  console.log("Is Admin:", isAdmin)
   const profile = {
     id: user.id,
     email: user.email,
@@ -39,12 +38,6 @@ export default async function DashboardLayout({
     balance: 0,
     created_at: user.created_at
   }
-  
-  console.log("=== PROFILE FIXED ===")
-  console.log("User Email:", user.email)
-  console.log("Is Admin:", isAdmin)
-  console.log("Profile Role:", profile.role)
-  console.log("======================")
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

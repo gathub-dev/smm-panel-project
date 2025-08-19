@@ -45,10 +45,8 @@ export async function checkIsAdmin() {
   } = await supabase.auth.getUser()
   if (!user) return false
   
-  console.log("user:", user)
-  
   // Primeiro, verificar no user_metadata (mais confiável para autenticação do Supabase)
-  if (user.user_metadata?.role === "admin") {
+  if (user.user_metadata?.role === "admin") { 
     return true
   }
   

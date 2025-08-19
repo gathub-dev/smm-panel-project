@@ -21,7 +21,6 @@ export default async function AdminLayout({
 
   // Usar a mesma função robusta de verificação admin
   const isAdmin = await checkIsAdmin()
-  console.log("isAdmin:", isAdmin)
 
   if (!isAdmin) {
     return (
