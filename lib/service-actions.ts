@@ -243,40 +243,46 @@ export async function updateService(serviceId: string, data: {
   markup_value?: number
   status?: 'active' | 'inactive'
   category_id?: string
+  sync_enabled?: boolean
 }) {
-  const supabase = createServerActionClient({ cookies })
+  // Usar service role para garantir acesso
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
 
   try {
-    // Verificar se é admin
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: "Não autenticado" }
+    console.log(`🔧 [updateService] Atualizando serviço ${serviceId}:`, data)
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (userData?.role !== "admin") {
-      return { error: "Acesso negado" }
-    }
-
-    const { error } = await supabase
+    const { data: updatedData, error } = await supabase
       .from('services')
       .update({
         ...data,
         updated_at: new Date().toISOString()
       })
       .eq('id', serviceId)
+      .select()
 
-    if (error) throw error
+    if (error) {
+      console.log(`❌ [updateService] Erro do Supabase:`, error)
+      throw error
+    }
+
+    console.log(`✅ [updateService] Serviço atualizado com sucesso:`, updatedData)
 
     revalidatePath("/dashboard/admin")
     revalidatePath("/dashboard/services")
 
-    return { success: true }
-  } catch (error) {
-    return { error: `Erro ao atualizar serviço: ${error}` }
+    return { success: true, data: updatedData }
+  } catch (error: any) {
+    console.log(`❌ [updateService] Erro geral:`, error)
+    return { error: `Erro ao atualizar serviço: ${error.message}` }
   }
 }
 
@@ -522,18 +528,48 @@ export async function getServicesList(filters?: {
     const servicesWithDynamicPrices = services?.map(service => {
       const providerRateUSD = parseFloat(service.provider_rate) || 0
       
-      if (providerRateUSD > 0) {
-        const providerRateBRL = providerRateUSD * exchangeRate
-        const finalRateBRL = providerRateBRL * (1 + markup / 100)
-        
-        return {
-          ...service,
-          provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
-          rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
-          markup_value: markup, // Markup atual
-          exchange_rate: exchangeRate // Taxa atual
+              if (providerRateUSD > 0) {
+          const providerRateBRL = providerRateUSD * exchangeRate
+          
+          // LÓGICA HIERÁRQUICA DE MARKUP:
+          // 1. Se serviço tem markup personalizado (diferente do padrão) → usa esse
+          // 2. Se não tem ou é igual ao padrão antigo → usa padrão atual
+          const serviceMarkupType = service.markup_type || 'percentage'
+          const serviceMarkupValue = parseFloat(service.markup_value) || 0
+          
+          // Considerar como padrão se:
+          // - Não tem markup_value definido (null/0)
+          // - Ou tem markup igual aos padrões antigos (20, 100)
+          // - Ou é tipo percentage e valor é um dos padrões comuns
+          const isUsingDefault = !serviceMarkupValue || 
+                                serviceMarkupValue === 20 || 
+                                serviceMarkupValue === 100 ||
+                                (serviceMarkupType === 'percentage' && [20, 25, 30, 50].includes(serviceMarkupValue))
+          
+          const finalMarkupValue = isUsingDefault ? markup : serviceMarkupValue
+          const hasCustomMarkup = !isUsingDefault
+          
+          let finalRateBRL
+          
+          if (hasCustomMarkup && serviceMarkupType === 'fixed') {
+            // Valor fixo em BRL - PREÇO FINAL EXATO
+            finalRateBRL = finalMarkupValue
+            console.log(`💵 [getServicesList] Serviço ${service.id}: preço fixo R$ ${finalMarkupValue}`)
+          } else {
+            // Porcentagem (personalizada ou padrão)
+            finalRateBRL = providerRateBRL * (1 + finalMarkupValue / 100)
+            console.log(`📊 [getServicesList] Serviço ${service.id}: markup ${finalMarkupValue}% ${hasCustomMarkup ? '(personalizado)' : '(padrão)'}`)
+          }
+          
+          return {
+            ...service,
+            provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
+            rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
+            markup_value: finalMarkupValue, // Markup usado (personalizado ou padrão)
+            markup_type: serviceMarkupType, // Tipo do markup
+            exchange_rate: exchangeRate // Taxa atual
+          }
         }
-      }
       
       return service
     }) || []

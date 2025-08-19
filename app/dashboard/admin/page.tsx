@@ -380,17 +380,36 @@ const AdminPage = () => {
     }
   }
 
-  const handleToggleServiceStatus = async (serviceId: string, newStatus: 'active' | 'inactive') => {
+  const handleToggleServiceStatus = async (serviceId: string, currentStatus: 'active' | 'inactive') => {
     try {
-      const result = await updateService(serviceId, { status: newStatus })
+      console.log(`🔄 [Admin] Toggle serviço ${serviceId}: ${currentStatus} → ${currentStatus === 'active' ? 'inactive' : 'active'}`)
+      
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+      
+      const result = await updateService(serviceId, { 
+        status: newStatus
+      })
+      
       if (result.success) {
+        // Atualizar o estado local imediatamente sem recarregar
+        setServicesList(prevServices => {
+          const updatedServices = prevServices.map(service => 
+            service.id === serviceId 
+              ? { ...service, status: newStatus }
+              : service
+          )
+          console.log(`🔄 [Admin] Estado local atualizado para serviço ${serviceId}:`, 
+            updatedServices.find(s => s.id === serviceId)?.status)
+          return updatedServices
+        })
+        
         toast.success(`Serviço ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso`)
-        loadServicesList(servicesFilters)
-        loadInitialData() // Atualizar estatísticas
+        console.log(`✅ [Admin] Serviço ${serviceId} atualizado: status=${newStatus}`)
       } else {
-        toast.error(result.error)
+        toast.error(result.error || 'Erro ao alterar status')
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`❌ [Admin] Erro ao toggle serviço ${serviceId}:`, error)
       toast.error('Erro ao alterar status do serviço')
     }
   }
@@ -412,6 +431,14 @@ const AdminPage = () => {
     if (!editingService) return
 
     try {
+      console.log('🔧 [Admin] Salvando serviço:', {
+        id: editingService.id,
+        name: editForm.name,
+        markup_type: editForm.markup_type,
+        markup_value: editForm.markup_value,
+        status: editForm.status
+      })
+
       const result = await updateService(editingService.id, {
         name: editForm.name,
         description: editingService.description,
@@ -420,6 +447,8 @@ const AdminPage = () => {
         status: editForm.status
       })
 
+      console.log('🔧 [Admin] Resultado do salvamento:', result)
+
       if (result.success) {
         toast.success('Serviço atualizado com sucesso!')
         setShowEditSheet(false)
@@ -427,10 +456,11 @@ const AdminPage = () => {
         loadServicesList(servicesFilters)
         loadInitialData()
       } else {
-        toast.error(result.error)
+        toast.error(result.error || 'Erro ao atualizar serviço')
       }
-    } catch (error) {
-      toast.error('Erro ao salvar serviço')
+    } catch (error: any) {
+      console.error('🔧 [Admin] Erro ao salvar serviço:', error)
+      toast.error('Erro ao salvar serviço: ' + error.message)
     }
   }
 
@@ -447,8 +477,9 @@ const AdminPage = () => {
       finalBRL = baseRateBRL * (1 + editForm.markup_value / 100)
       finalUSD = baseRateUSD * (1 + editForm.markup_value / 100)
     } else {
-      finalBRL = baseRateBRL + editForm.markup_value
-      finalUSD = baseRateUSD + (editForm.markup_value / currentExchangeRate) // Converter markup para USD
+      // Valor fixo - PREÇO FINAL EXATO em BRL
+      finalBRL = editForm.markup_value
+      finalUSD = editForm.markup_value / currentExchangeRate
     }
     
     return { brl: finalBRL, usd: finalUSD }
@@ -1041,11 +1072,10 @@ const AdminPage = () => {
                         <TableRow>
                           <TableHead>Serviço</TableHead>
                           <TableHead>Provider</TableHead>
-                                                <TableHead>Categoria</TableHead>
-                      <TableHead>Preço Original (BRL/USD)</TableHead>
-                      <TableHead>Preço Final (BRL/USD)</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead>Preço Original (BRL/USD)</TableHead>
+                          <TableHead>Preço Final (BRL/USD)</TableHead>
                           <TableHead>Markup</TableHead>
-                          <TableHead>Status</TableHead>
                           <TableHead>Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1080,20 +1110,21 @@ const AdminPage = () => {
                             </TableCell>
                             <TableCell>
                               <span className="text-sm">
-                                {service.markup_type === 'percentage' ? `${service.markup_value}%` : `+$${service.markup_value}`}
+                                {service.markup_type === 'percentage' ? `${service.markup_value}%` : `R$ ${service.markup_value}`}
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={service.status === 'active' ? 'default' : 'secondary'}>
-                                {service.status === 'active' ? 'Ativo' : 'Inativo'}
-                              </Badge>
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => handleToggleServiceStatus(service.id, service.status === 'active' ? 'inactive' : 'active')}
+                                  variant={service.status === 'active' ? 'default' : 'secondary'}
+                                  onClick={() => handleToggleServiceStatus(service.id, service.status)}
+                                  className={`transition-colors ${
+                                    service.status === 'active' 
+                                      ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                      : 'bg-red-500 hover:bg-red-600 text-white'
+                                  }`}
+                                  title={`${service.status === 'active' ? 'Desativar' : 'Ativar'} serviço`}
                                 >
                                   {service.status === 'active' ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                                 </Button>
@@ -1101,6 +1132,7 @@ const AdminPage = () => {
                                   size="sm" 
                                   variant="outline"
                                   onClick={() => handleEditService(service)}
+                                  title="Editar serviço"
                                 >
                                   <Edit className="h-3 w-3" />
                                 </Button>
@@ -1252,7 +1284,7 @@ const AdminPage = () => {
 
       {/* Sheet de Edição de Serviço */}
       <Sheet open={showEditSheet} onOpenChange={setShowEditSheet}>
-        <SheetContent className="w-[400px] sm:w-[540px]">
+        <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Editar Serviço</SheetTitle>
             <SheetDescription>
@@ -1350,7 +1382,7 @@ const AdminPage = () => {
                   <p className="text-xs text-muted-foreground">
                     {editForm.markup_type === 'percentage' 
                       ? 'Porcentagem de markup sobre o preço original'
-                      : 'Valor em dólares a ser adicionado ao preço original'
+                      : 'Preço final fixo em Reais (R$) que será cobrado do cliente'
                     }
                   </p>
                 </div>

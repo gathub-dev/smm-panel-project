@@ -82,13 +82,43 @@ export async function getPublicServices(filters?: {
       
       if (providerRateUSD > 0) {
         const providerRateBRL = providerRateUSD * exchangeRate
-        const finalRateBRL = providerRateBRL * (1 + markup / 100)
+        
+        // LÓGICA HIERÁRQUICA DE MARKUP:
+        // 1. Se serviço tem markup personalizado (diferente do padrão) → usa esse
+        // 2. Se não tem ou é igual ao padrão antigo → usa padrão atual
+        const serviceMarkupType = service.markup_type || 'percentage'
+        const serviceMarkupValue = parseFloat(service.markup_value) || 0
+        
+        // Considerar como padrão se:
+        // - Não tem markup_value definido (null/0)
+        // - Ou tem markup igual aos padrões antigos (20, 100)
+        // - Ou é tipo percentage e valor é um dos padrões comuns
+        const isUsingDefault = !serviceMarkupValue || 
+                              serviceMarkupValue === 20 || 
+                              serviceMarkupValue === 100 ||
+                              (serviceMarkupType === 'percentage' && [20, 25, 30, 50].includes(serviceMarkupValue))
+        
+        const finalMarkupValue = isUsingDefault ? markup : serviceMarkupValue
+        const hasCustomMarkup = !isUsingDefault
+        
+        let finalRateBRL
+        
+        if (hasCustomMarkup && serviceMarkupType === 'fixed') {
+          // Valor fixo em BRL - PREÇO FINAL EXATO
+          finalRateBRL = finalMarkupValue
+          console.log(`💵 [getPublicServices] Serviço ${service.id}: preço fixo R$ ${finalMarkupValue}`)
+        } else {
+          // Porcentagem (personalizada ou padrão)
+          finalRateBRL = providerRateBRL * (1 + finalMarkupValue / 100)
+          console.log(`📊 [getPublicServices] Serviço ${service.id}: markup ${finalMarkupValue}% ${hasCustomMarkup ? '(personalizado)' : '(padrão)'}`)
+        }
         
         return {
           ...service,
           provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
           rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
-          markup_value: markup, // Markup atual
+          markup_value: finalMarkupValue, // Markup usado (personalizado ou padrão)
+          markup_type: serviceMarkupType, // Tipo do markup
           exchange_rate: exchangeRate // Taxa atual
         }
       }
