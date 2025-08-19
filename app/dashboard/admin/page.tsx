@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -140,6 +140,41 @@ const AdminPage = () => {
     lp_visible: false,
     featured: false
   })
+
+  // Estado separado para o input de quantidades
+  const [quantitiesInput, setQuantitiesInput] = useState('')
+
+  // Função debounced para processar quantidades
+  const processQuantities = useCallback((value: string) => {
+    if (!value.trim()) {
+      setEditForm(prev => ({ ...prev, quantities: [] }))
+      return
+    }
+    
+    try {
+      // Dividir por vírgula e converter para números
+      const quantities = value
+        .split(',')
+        .map(q => q.trim())
+        .filter(q => q !== '' && !isNaN(parseInt(q)))
+        .map(q => parseInt(q))
+        .filter(q => q > 0)
+      
+      console.log('📦 [QUANTITIES] Processadas:', quantities)
+      setEditForm(prev => ({ ...prev, quantities }))
+    } catch (error) {
+      console.error('❌ [QUANTITIES] Erro ao processar:', error)
+    }
+  }, [])
+
+  // Debounce para processar quantidades
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      processQuantities(quantitiesInput)
+    }, 500) // Aguarda 500ms após parar de digitar
+
+    return () => clearTimeout(timer)
+  }, [quantitiesInput, processQuantities])
 
   // Estados para modais
   const [showAPIKeyModal, setShowAPIKeyModal] = useState(false)
@@ -418,6 +453,26 @@ const AdminPage = () => {
   }
 
   const handleEditService = (service: any) => {
+    console.log('🔧 [EDIT-SERVICE] Editando serviço:', service)
+    
+    // Processar quantities corretamente
+    let quantities = []
+    if (service.quantities) {
+      try {
+        // Se for string JSON, fazer parse
+        if (typeof service.quantities === 'string') {
+          quantities = JSON.parse(service.quantities)
+        } else if (Array.isArray(service.quantities)) {
+          quantities = service.quantities
+        }
+      } catch (error) {
+        console.warn('⚠️ [EDIT-SERVICE] Erro ao processar quantities:', error)
+        quantities = []
+      }
+    }
+    
+    console.log('📦 [EDIT-SERVICE] Quantities processadas:', quantities)
+    
     setEditingService(service)
     setEditForm({
       name: service.name,
@@ -429,10 +484,14 @@ const AdminPage = () => {
       status: service.status,
       // Novos campos da loja
       shop_category: service.shop_category || 'outros',
-      quantities: service.quantities || [],
+      quantities: quantities,
       lp_visible: service.lp_visible || false,
       featured: service.featured || false
     })
+    
+    // Definir o input de quantidades
+    setQuantitiesInput(quantities.length > 0 ? quantities.join(', ') : '')
+    
     setShowEditSheet(true)
   }
 
@@ -440,31 +499,51 @@ const AdminPage = () => {
     if (!editingService) return
 
     try {
-      
+      console.log('💾 [SAVE-SERVICE] Salvando serviço:', editingService.id)
+      console.log('💾 [SAVE-SERVICE] Dados do formulário:', editForm)
+
+      // Validação básica
+      if (!editForm.name?.trim()) {
+        toast.error('Nome do serviço é obrigatório')
+        return
+      }
+
+      if (!editForm.markup_value || editForm.markup_value <= 0) {
+        toast.error('Valor de markup deve ser maior que zero')
+        return
+      }
 
       const result = await updateService(editingService.id, {
-        name: editForm.name,
+        name: editForm.name.trim(),
         description: editingService.description,
+        platform_id: editForm.platform_id || undefined,
         markup_type: editForm.markup_type,
         markup_value: editForm.markup_value,
         status: editForm.status,
         // Novos campos da loja
         shop_category: editForm.shop_category,
-        quantities: editForm.quantities,
-        lp_visible: editForm.lp_visible,
-        featured: editForm.featured
+        quantities: editForm.quantities || [],
+        lp_visible: editForm.lp_visible || false,
+        featured: editForm.featured || false
       })
+
+      console.log('💾 [SAVE-SERVICE] Resultado:', result)
 
       if (result.success) {
         toast.success('Serviço atualizado com sucesso!')
         setShowEditSheet(false)
         setEditingService(null)
-        loadServicesList(servicesFilters)
-        loadInitialData()
+        
+        // Recarregar dados
+        await Promise.all([
+          loadServicesList(servicesFilters),
+          loadInitialData()
+        ])
       } else {
         toast.error(result.error || 'Erro ao atualizar serviço')
       }
     } catch (error: any) {
+      console.error('💥 [SAVE-SERVICE] Erro fatal:', error)
       toast.error('Erro ao salvar serviço: ' + error.message)
     }
   }
@@ -1601,14 +1680,11 @@ const AdminPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {platforms.length === 0 && <SelectItem value="none" disabled>Nenhuma plataforma encontrada</SelectItem>}
-                    {platforms.map(platform => {
-                      console.log('🎯 Renderizando plataforma:', platform)
-                      return (
-                        <SelectItem key={platform.id} value={platform.id}>
-                          {platform.display_name}
-                        </SelectItem>
-                      )
-                    })}
+                    {platforms.map(platform => (
+                      <SelectItem key={platform.id} value={platform.id}>
+                        {platform.display_name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1736,20 +1812,23 @@ const AdminPage = () => {
                 <div className="space-y-2">
                   <Label>Quantidades Disponíveis</Label>
                   <Input
-                    value={editForm.quantities ? JSON.stringify(editForm.quantities) : '[]'}
+                    type="text"
+                    placeholder="Ex: 100, 250, 500, 1000"
+                    value={quantitiesInput}
                     onChange={(e) => {
-                      try {
-                        const parsed = JSON.parse(e.target.value)
-                        setEditForm(prev => ({ ...prev, quantities: parsed }))
-                      } catch (error) {
-                        // Ignore invalid JSON
-                      }
+                      const value = e.target.value
+                      console.log('📦 [QUANTITIES] Digitando:', value)
+                      setQuantitiesInput(value)
                     }}
-                    placeholder="[100, 250, 500, 1000]"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Array JSON com quantidades (ex: [100, 250, 500, 1000, 2500])
+                    Digite as quantidades separadas por vírgula (ex: 100, 250, 500, 1000)
                   </p>
+                  {editForm.quantities && editForm.quantities.length > 0 && (
+                    <div className="text-xs text-green-600 font-medium">
+                      ✅ Quantidades válidas: {editForm.quantities.join(', ')}
+                    </div>
+                  )}
                 </div>
 
                 {/* Checkboxes da Loja */}

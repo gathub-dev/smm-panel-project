@@ -322,7 +322,7 @@ async function getOrCreateEntity(supabase: any, rpcName: string, params: any): P
 /**
  * Atualizar configurações de um serviço
  */
-  export async function updateService(serviceId: string, data: {
+export async function updateService(serviceId: string, data: {
   name?: string
   description?: string
   markup_type?: 'percentage' | 'fixed'  
@@ -350,25 +350,39 @@ async function getOrCreateEntity(supabase: any, rpcName: string, params: any): P
   )
 
   try {
+    console.log('🔄 [UPDATE-SERVICE] Atualizando serviço:', serviceId, data)
+
+    // Preparar dados para atualização
+    const updateData: any = {
+      ...data,
+      updated_at: new Date().toISOString()
+    }
+
+    // Converter quantities para JSON se for array
+    if (data.quantities !== undefined) {
+      updateData.quantities = JSON.stringify(data.quantities)
+      console.log('📦 [UPDATE-SERVICE] Quantities convertidas:', updateData.quantities)
+    }
 
     const { data: updatedData, error } = await supabase
       .from('services')
-      .update({
-        ...data,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', serviceId)
       .select()
 
     if (error) {
+      console.error('❌ [UPDATE-SERVICE] Erro no banco:', error)
       throw error
     }
+
+    console.log('✅ [UPDATE-SERVICE] Serviço atualizado com sucesso:', updatedData)
     
     revalidatePath("/dashboard/admin")
     revalidatePath("/dashboard/services")
 
     return { success: true, data: updatedData }
   } catch (error: any) {
+    console.error('💥 [UPDATE-SERVICE] Erro fatal:', error)
     return { error: `Erro ao atualizar serviço: ${error.message}` }
   }
 }
@@ -549,7 +563,8 @@ export async function getServicesList(filters?: {
             id, provider, provider_service_id, name, description, category,
             provider_rate, rate, markup_type, markup_value,
             min_quantity, max_quantity, status, sync_enabled,
-            last_sync, created_at, updated_at, platform_id
+            last_sync, created_at, updated_at, platform_id,
+            shop_category, quantities, lp_visible, featured
           `)
           .order('created_at', { ascending: false })
       ).range(offset, offset + limit - 1),
