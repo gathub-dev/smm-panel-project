@@ -1,0 +1,5 @@
+# SMM Panel - Sincronização automática a cada 6 horas
+0 */6 * * * cd /Users/vitorhugo/Downloads/smm-panel-project-main && ./scripts/auto-sync.sh >> logs/auto-sync.log 2>&1
+
+# SMM Panel - Monitoramento rápido a cada hora
+0 * * * * cd /Users/vitorhugo/Downloads/smm-panel-project-main && node scripts/monitor-and-sync.js >> logs/monitoring.log 2>&1

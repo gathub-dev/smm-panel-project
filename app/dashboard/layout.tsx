@@ -1,0 +1,42 @@
+import type React from "react"
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import DashboardSidebar from "@/components/dashboard-sidebar"
+import DashboardHeader from "@/components/dashboard-header"
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  // If Supabase is not configured, redirect to home
+  if (!isSupabaseConfigured) {
+    redirect("/")
+  }
+
+  // Check if user is authenticated
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // If no user, redirect to login
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  // Get user profile data
+  const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single()
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <DashboardSidebar />
+      <div className="lg:pl-64">
+        <DashboardHeader user={user} profile={profile} />
+        <main className="py-6">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
+        </main>
+      </div>
+    </div>
+  )
+}
