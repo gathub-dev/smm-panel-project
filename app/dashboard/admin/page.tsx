@@ -124,7 +124,12 @@ const AdminPage = () => {
     rate: 0,
     markup_type: 'percentage' as 'percentage' | 'fixed',
     markup_value: 20,
-    status: 'active' as 'active' | 'inactive'
+    status: 'active' as 'active' | 'inactive',
+    // Novos campos da loja
+    shop_category: 'outros',
+    quantities: [] as number[],
+    lp_visible: false,
+    featured: false
   })
 
   // Estados para modais
@@ -422,7 +427,12 @@ const AdminPage = () => {
       rate: service.rate,
       markup_type: service.markup_type,
       markup_value: service.markup_value,
-      status: service.status
+      status: service.status,
+      // Novos campos da loja
+      shop_category: service.shop_category || 'outros',
+      quantities: service.quantities || [],
+      lp_visible: service.lp_visible || false,
+      featured: service.featured || false
     })
     setShowEditSheet(true)
   }
@@ -436,7 +446,12 @@ const AdminPage = () => {
         name: editForm.name,
         markup_type: editForm.markup_type,
         markup_value: editForm.markup_value,
-        status: editForm.status
+        status: editForm.status,
+        // Novos campos da loja
+        shop_category: editForm.shop_category,
+        quantities: editForm.quantities,
+        lp_visible: editForm.lp_visible,
+        featured: editForm.featured
       })
 
       const result = await updateService(editingService.id, {
@@ -444,7 +459,12 @@ const AdminPage = () => {
         description: editingService.description,
         markup_type: editForm.markup_type,
         markup_value: editForm.markup_value,
-        status: editForm.status
+        status: editForm.status,
+        // Novos campos da loja
+        shop_category: editForm.shop_category,
+        quantities: editForm.quantities,
+        lp_visible: editForm.lp_visible,
+        featured: editForm.featured
       })
 
       console.log('🔧 [Admin] Resultado do salvamento:', result)
@@ -1073,6 +1093,7 @@ const AdminPage = () => {
                           <TableHead>Serviço</TableHead>
                           <TableHead>Provider</TableHead>
                           <TableHead>Categoria</TableHead>
+                          <TableHead>🏪 Loja</TableHead>
                           <TableHead>Preço Original (BRL/USD)</TableHead>
                           <TableHead>Preço Final (BRL/USD)</TableHead>
                           <TableHead>Markup</TableHead>
@@ -1095,6 +1116,25 @@ const AdminPage = () => {
                             </TableCell>
                             <TableCell>
                               <div className="text-sm">{service.category}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="text-xs text-muted-foreground">
+                                  {service.shop_category ? `${service.shop_category}` : 'outros'}
+                                </div>
+                                <div className="flex gap-1">
+                                  {service.lp_visible && (
+                                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                                      🎯 LP
+                                    </Badge>
+                                  )}
+                                  {service.featured && (
+                                    <Badge variant="default" className="text-xs px-1 py-0">
+                                      ⭐ Destaque
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
@@ -1421,6 +1461,83 @@ const AdminPage = () => {
                     <SelectItem value="inactive">Inativo</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Configurações da Loja */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">🏪 Configurações da Loja</Label>
+                
+                {/* Categoria da Loja */}
+                <div className="space-y-2">
+                  <Label>Categoria da Loja</Label>
+                  <Select
+                    value={editForm.shop_category || 'outros'}
+                    onValueChange={(value) => setEditForm(prev => ({ ...prev, shop_category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="seguidores">👥 Seguidores</SelectItem>
+                      <SelectItem value="curtidas">❤️ Curtidas</SelectItem>
+                      <SelectItem value="visualizacoes">👁️ Visualizações</SelectItem>
+                      <SelectItem value="comentarios">💬 Comentários</SelectItem>
+                      <SelectItem value="estatisticas">📊 Estatísticas</SelectItem>
+                      <SelectItem value="outros">📦 Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Quantidades Disponíveis */}
+                <div className="space-y-2">
+                  <Label>Quantidades Disponíveis</Label>
+                  <Input
+                    value={editForm.quantities ? JSON.stringify(editForm.quantities) : '[]'}
+                    onChange={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value)
+                        setEditForm(prev => ({ ...prev, quantities: parsed }))
+                      } catch (error) {
+                        // Ignore invalid JSON
+                      }
+                    }}
+                    placeholder="[100, 250, 500, 1000]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Array JSON com quantidades (ex: [100, 250, 500, 1000, 2500])
+                  </p>
+                </div>
+
+                {/* Checkboxes da Loja */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="lp-visible"
+                      checked={editForm.lp_visible || false}
+                      onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, lp_visible: checked }))}
+                    />
+                    <Label htmlFor="lp-visible" className="text-sm font-medium">
+                      🎯 Visível na Landing Page
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    Serviço aparecerá na loja simples (sem login)
+                  </p>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="featured"
+                      checked={editForm.featured || false}
+                      onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, featured: checked }))}
+                    />
+                    <Label htmlFor="featured" className="text-sm font-medium">
+                      ⭐ Produto em Destaque
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    Serviço aparecerá na seção "Mais Vendidos"
+                  </p>
+                </div>
               </div>
 
               {/* Botões de Ação */}

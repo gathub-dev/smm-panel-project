@@ -244,6 +244,11 @@ export async function updateService(serviceId: string, data: {
   status?: 'active' | 'inactive'
   category_id?: string
   sync_enabled?: boolean
+  // Novos campos da loja
+  shop_category?: string
+  quantities?: number[]
+  lp_visible?: boolean
+  featured?: boolean
 }) {
   // Usar service role para garantir acesso
   const supabase = createClient(
