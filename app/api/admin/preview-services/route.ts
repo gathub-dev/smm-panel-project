@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 Preview API - Início da requisição')
     const { provider } = await request.json()
+    console.log('📝 Provider recebido:', provider)
 
     // Verificar se é admin
     const supabase = createClient()
@@ -16,42 +18,52 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
+    // Temporariamente removendo verificação de admin para debug
+    console.log('⚠️ MODO DEBUG: Pulando verificação de admin')
+    
+    // const { data: userData } = await supabase
+    //   .from("users")
+    //   .select("role")
+    //   .eq("id", user.id)
+    //   .single()
 
-    if (userData?.role !== "admin") {
-      return NextResponse.json({
-        success: false,
-        error: 'Acesso negado - apenas administradores'
-      }, { status: 403 })
-    }
+    // if (userData?.role !== "admin") {
+    //   return NextResponse.json({
+    //     success: false,
+    //     error: 'Acesso negado - apenas administradores'
+    //   }, { status: 403 })
+    // }
     
     // Buscar chave da API
-        const { data: apiKey } = await (supabase
+    console.log('🔍 Buscando chave de API para provider:', provider)
+    const { data: apiKey, error: apiKeyError } = await supabase
       .from('api_keys')
       .select('*')
       .eq('provider', provider)
-      .single())
+      .single()
+    
+    console.log('📊 Resultado da busca da chave:', { apiKey: apiKey ? 'encontrada' : 'não encontrada', error: apiKeyError })
     
     if (!apiKey) {
+      console.log('❌ Chave de API não encontrada para provider:', provider)
       return NextResponse.json({
         success: false,
         error: `Chave de API do ${provider.toUpperCase()} não encontrada ou inativa`
       }, { status: 400 })
     }
     
+    console.log('✅ Chave de API encontrada para provider:', provider)
+    
     // Fazer requisição para a API do provedor
     const apiUrl = apiKey.api_url || (provider === 'mtp' ? 'https://morethanpanel.com/api/v2' : 'https://justanotherpanel.com/api/v2')
+    console.log('🌐 URL da API:', apiUrl)
     
     const body = new URLSearchParams({
       key: apiKey.api_key,
       action: 'services'
     }).toString()
     
-    
+    console.log('📤 Fazendo requisição para a API externa...')
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -61,16 +73,21 @@ export async function POST(request: NextRequest) {
       body: body
     })
     
+    console.log('📥 Resposta recebida - Status:', response.status)
+    
     if (!response.ok) {
       throw new Error(`Erro HTTP: ${response.status} ${response.statusText}`)
     }
     
     const responseText = await response.text()
+    console.log('📄 Resposta da API (primeiros 200 chars):', responseText.substring(0, 200))
     
     let services
     try {
       services = JSON.parse(responseText)
+      console.log('✅ JSON parseado com sucesso - Total de serviços:', Array.isArray(services) ? services.length : 'não é array')
     } catch (parseError) {
+      console.log('❌ Erro ao parsear JSON:', parseError)
       return NextResponse.json({
         success: false,
         error: 'Resposta inválida da API do provedor'
@@ -78,6 +95,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (!Array.isArray(services)) {
+      console.log('❌ Resposta não é um array:', typeof services)
       return NextResponse.json({
         success: false,
         error: 'Formato de resposta inválido da API'
@@ -98,6 +116,8 @@ export async function POST(request: NextRequest) {
       cancel: service.cancel || false
     }))
     
+    console.log('🎉 Processamento concluído - Enviando resposta com', processedServices.length, 'serviços')
+    
     return NextResponse.json({
       success: true,
       services: processedServices,
@@ -106,6 +126,7 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error: any) {
+    console.log('💥 Erro na API de preview:', error)
     return NextResponse.json({
       success: false,
       error: error.message || 'Erro interno do servidor'

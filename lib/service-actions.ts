@@ -11,6 +11,66 @@ import { getBothCategoryVersions } from "./category-translations"
 import { getSetting } from "./settings-actions"
 import { translationService } from "./translation-service"
 
+
+/**
+ * Traduzir um serviço específico pelo ID
+ */
+export async function translateServiceById(serviceId: number) {
+  const supabase = createServerActionClient({ cookies })
+
+  try {
+    // Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Não autenticado" }
+
+    // Buscar o serviço
+    const { data: service, error: serviceError } = await supabase
+      .from('services')
+      .select('id, name, description, category')
+      .eq('id', serviceId)
+      .single()
+
+    if (serviceError) return { error: `Erro ao buscar serviço: ${serviceError.message}` }
+    if (!service) return { error: "Serviço não encontrado" }
+
+    console.log(`🌐 [TRANSLATE-SERVICE] Traduzindo serviço ID ${serviceId}: ${service.name}`)
+    
+    // Traduzir
+    const translatedName = await translationService.translateToPortuguese(service.name)
+    const translatedDescription = service.description ? 
+      await translationService.translateToPortuguese(service.description) : translatedName
+    const translatedCategory = await translationService.translateToPortuguese(service.category || 'Other')
+
+    // Atualizar no banco
+    const { error: updateError } = await supabase
+      .from('services')
+      .update({
+        name: translatedName,
+        description: translatedDescription,
+        category: translatedCategory,
+        original_name: service.name !== translatedName ? service.name : null,
+        original_description: service.description !== translatedDescription ? service.description : null,
+        original_category: service.category !== translatedCategory ? service.category : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', serviceId)
+
+    if (updateError) return { error: `Erro ao atualizar serviço: ${updateError.message}` }
+
+    console.log(`✅ [TRANSLATE-SERVICE] Serviço traduzido: "${service.name}" → "${translatedName}"`)
+
+    revalidatePath("/dashboard/admin")
+    return { 
+      success: true, 
+      originalName: service.name,
+      translatedName: translatedName,
+      message: `Serviço traduzido com sucesso!`
+    }
+  } catch (error) {
+    return { error: `Erro na tradução: ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
 /**
  * Sincronizar todos os serviços dos provedores
  */
@@ -148,11 +208,40 @@ async function processService(
       .single()
 
     // 🌍 TRADUÇÃO AUTOMÁTICA - Traduzir dados do serviço para português
-    const translatedData = await translationService.translateServiceData({
-      name: service.name,
-      description: service.description,
-      category: service.category
-    })
+    console.log(`🌐 [SYNC-TRANSLATE] Traduzindo serviço: ${service.name}`)
+    
+    let translatedData
+    try {
+      // Sempre tentar traduzir, mesmo que seja fallback
+      const translatedName = await translationService.translateToPortuguese(service.name)
+      const translatedDescription = service.description ? 
+        await translationService.translateToPortuguese(service.description) : translatedName
+      const translatedCategory = await translationService.translateToPortuguese(service.category || 'Other')
+      
+      translatedData = {
+        name: translatedName,
+        description: translatedDescription,
+        category: translatedCategory,
+        originalName: service.name !== translatedName ? service.name : undefined,
+        originalDescription: service.description !== translatedDescription ? service.description : undefined,
+        originalCategory: service.category !== translatedCategory ? service.category : undefined
+      }
+      
+      console.log(`✅ [SYNC-TRANSLATE] Traduzido: "${service.name}" → "${translatedData.name}"`)
+      console.log(`✅ [SYNC-TRANSLATE] Categoria: "${service.category}" → "${translatedData.category}"`)
+      
+    } catch (error) {
+      console.error(`❌ [SYNC-TRANSLATE] Erro na tradução:`, error)
+      // Se tudo falhar, usar dados originais
+      translatedData = {
+        name: service.name,
+        description: service.description || service.name,
+        category: service.category || 'Other',
+        originalName: undefined,
+        originalDescription: undefined,
+        originalCategory: undefined
+      }
+    }
 
     // Extrair informações dinamicamente usando dados traduzidos
     const serviceInfo = extractServiceInfo(translatedData.name, translatedData.category || '')
@@ -563,19 +652,15 @@ export async function getServiceCategories() {
  * Traduzir serviços existentes que ainda não foram traduzidos
  */
 export async function translateExistingServices(batchSize: number = 50) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
+  const supabase = createServerActionClient({ cookies })
 
   try {
     // Buscar serviços que ainda não foram traduzidos
-    // (aqueles que não têm original_name preenchido)
+    // (nomes que contêm palavras típicas em inglês)
     const { data: services, error } = await supabase
       .from('services')
       .select('id, name, description, category')
-      .is('original_name', null) // Ainda não traduzidos
+      .or('name.ilike.%Likes%,name.ilike.%Followers%,name.ilike.%Views%,name.ilike.%Comments%,name.ilike.%Subscribers%,name.ilike.%Members%')
       .eq('status', 'active')
       .limit(batchSize)
 
@@ -585,6 +670,7 @@ export async function translateExistingServices(batchSize: number = 50) {
     }
 
     console.log(`🌍 Traduzindo ${services.length} serviços em segundo plano...`)
+    console.log(`📋 Serviços encontrados:`, services.map(s => `ID: ${s.id} - ${s.name}`))
     
     let translatedCount = 0
 
@@ -592,40 +678,70 @@ export async function translateExistingServices(batchSize: number = 50) {
     const miniBatchSize = 10
     for (let i = 0; i < services.length; i += miniBatchSize) {
       const batch = services.slice(i, i + miniBatchSize)
+      console.log(`📦 Processando lote ${Math.floor(i/miniBatchSize) + 1}: ${batch.length} serviços`)
       
       await Promise.all(batch.map(async (service) => {
         try {
+          console.log(`🌐 [TRANSLATE-BATCH] Iniciando tradução do serviço ID ${service.id}: "${service.name}"`)
+          
           // Traduzir dados do serviço
           const translatedData = await translationService.translateServiceData({
             name: service.name,
             description: service.description,
             category: service.category
           })
+          
+          console.log(`📝 [TRANSLATE-BATCH] Resultado da tradução:`, {
+            original: service.name,
+            translated: translatedData.name,
+            changed: translatedData.name !== service.name
+          })
 
-          // Atualizar apenas se houve tradução
-          if (translatedData.originalName || translatedData.originalDescription || translatedData.originalCategory) {
+          // Sempre atualizar se há diferença entre original e traduzido
+          const needsUpdate = translatedData.name !== service.name || 
+                             translatedData.category !== service.category ||
+                             (translatedData.description && translatedData.description !== service.description)
+          
+          console.log(`🔍 [TRANSLATE-BATCH] Serviço ID ${service.id} precisa atualizar:`, needsUpdate)
+          console.log(`📊 [TRANSLATE-BATCH] Comparação:`, {
+            nomeOriginal: service.name,
+            nomeTraduzido: translatedData.name,
+            mudouNome: translatedData.name !== service.name,
+            categoriaOriginal: service.category,
+            categoriaTraduzida: translatedData.category,
+            mudouCategoria: translatedData.category !== service.category
+          })
+          
+          if (needsUpdate) {
+            console.log(`💾 [TRANSLATE-BATCH] Atualizando serviço ID ${service.id} no banco...`)
+            
+            const updateData = {
+              name: translatedData.name,
+              description: translatedData.description || translatedData.name,
+              category: translatedData.category,
+              original_name: service.name,
+              original_description: service.description,
+              original_category: service.category,
+              updated_at: new Date().toISOString()
+            }
+            
             const { error: updateError } = await supabase
               .from('services')
-              .update({
-                name: translatedData.name,
-                description: translatedData.description,
-                category: translatedData.category,
-                original_name: translatedData.originalName,
-                original_description: translatedData.originalDescription,
-                original_category: translatedData.originalCategory,
-                updated_at: new Date().toISOString()
-              })
+              .update(updateData)
               .eq('id', service.id)
 
-            if (!updateError) {
+            if (updateError) {
+              console.error(`❌ [TRANSLATE-BATCH] Erro ao atualizar serviço ID ${service.id}:`, updateError)
+            } else {
+              console.log(`✅ [TRANSLATE-BATCH] Serviço ID ${service.id} traduzido: "${service.name}" → "${translatedData.name}"`)
               translatedCount++
-              console.log(`  ✅ Traduzido: ${service.name} → ${translatedData.name}`)
             }
           } else {
-            // Marcar como "já em português" para não processar novamente
+            console.log(`⏭️ [TRANSLATE-BATCH] Serviço ID ${service.id} já está em português ou não mudou`)
+            // Marcar como processado para não tentar novamente
             await supabase
               .from('services')
-              .update({ original_name: '' }) // String vazia indica "já em português"
+              .update({ original_name: service.name })
               .eq('id', service.id)
           }
         } catch (error) {

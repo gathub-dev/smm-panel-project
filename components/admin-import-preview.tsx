@@ -27,7 +27,6 @@ import {
   Clock
 } from "lucide-react"
 import { toast } from "sonner"
-import { translateCategory, translateCategorySync } from "@/lib/category-translations"
 
 interface APIService {
   service: string
@@ -90,76 +89,30 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
       }
       
       const data = await response.json()
+      console.log('📊 Resposta completa da API:', data)
       
       if (data.success && Array.isArray(data.services)) {
-        // Aplicar tradução rápida (síncrona) primeiro
-        const translatedServices = data.services.map((service: APIService) => {
-          const originalCategory = service.category
-          const originalName = service.name
-          const translatedCategory = translateCategorySync(service.category)
-          const translatedName = translateCategorySync(service.name)
-          
-          return {
-            ...service,
-            name: translatedName,
-            category: translatedCategory,
-            originalCategory: originalCategory,
-            originalName: originalName
-          }
-        })
+        console.log('✅ Dados recebidos com sucesso:', data.services.length, 'serviços')
         
-        setTimeout(async () => {
-          try {
-            const improvedServices = await Promise.all(
-              translatedServices.map(async (service: APIService) => {
-                const betterCategoryTranslation = await translateCategory((service as any).originalCategory || service.category)
-                const betterNameTranslation = await translateCategory((service as any).originalName || service.name)
-                
-                let hasImprovements = false
-                const improvedService = { ...service }
-                
-                if (betterCategoryTranslation !== service.category) {
-                  console.log(`🔄 Melhorando categoria: "${service.category}" → "${betterCategoryTranslation}"`)
-                  improvedService.category = betterCategoryTranslation
-                  hasImprovements = true
-                }
-                
-                if (betterNameTranslation !== service.name) {
-                  console.log(`🔄 Melhorando nome: "${service.name}" → "${betterNameTranslation}"`)
-                  improvedService.name = betterNameTranslation
-                  hasImprovements = true
-                }
-                
-                return improvedService
-              })
-            )
-            
-            // Atualizar apenas se houve melhorias
-            const hasImprovements = improvedServices.some((service, index) => 
-              service.category !== translatedServices[index].category ||
-              service.name !== translatedServices[index].name
-            )
-            
-            if (hasImprovements) {
-              setServices(improvedServices)
-              const uniqueCategories = [...new Set(improvedServices.map(s => s.category))] as string[]
-              setCategories(uniqueCategories.sort())
-            }
-          } catch (error) {
-          }
-        }, 100) // Executar após 100ms
+        // Usar dados originais sem tradução no preview
+        const originalServices = data.services.map((service: APIService) => ({
+          ...service,
+          originalCategory: service.category,
+          originalName: service.name
+        }))
         
-        setServices(translatedServices)
+        setServices(originalServices)
         
-        const uniqueCategories = [...new Set(translatedServices.map((s: APIService) => s.category))] as string[]
+        const uniqueCategories = [...new Set(originalServices.map((s: APIService) => s.category))] as string[]
         setCategories(uniqueCategories.sort())
         
-        toast.success(`${data.services.length} serviços carregados da API ${providerFilter.toUpperCase()} (traduzindo...)`)
+        toast.success(`${data.services.length} serviços carregados da API ${providerFilter.toUpperCase()}`)
       } else {
         throw new Error(data.error || 'Resposta inválida da API')
       }
       
     } catch (error: any) {
+      console.error('💥 Erro detalhado:', error)
       toast.error(`Erro ao carregar serviços: ${error.message}`)
       setServices([])
       setCategories([])
@@ -211,15 +164,24 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
   }
 
   const importSelectedServices = async () => {
+    console.log('🚀 Iniciando importação...')
+    
     if (selectedServices.size === 0) {
       toast.error('Selecione pelo menos um serviço para importar')
       return
     }
 
+    console.log('📊 Serviços selecionados:', selectedServices.size)
+    
     setLoading(true)
     try {
       const servicesToImport = filteredServices.filter(s => selectedServices.has(s.service))
+      console.log('📦 Serviços para importar:', servicesToImport.length)
+      console.log('🔍 Dados dos serviços:', servicesToImport)
       
+      toast.info('Traduzindo serviços selecionados...')
+      
+      console.log('📡 Fazendo requisição para API de importação...')
       const response = await fetch('/api/admin/import-services', {
         method: 'POST',
         headers: {
@@ -227,24 +189,44 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
         },
         body: JSON.stringify({
           provider: providerFilter,
-          services: servicesToImport
+          services: servicesToImport,
+          translateOnImport: true // Flag para indicar que deve traduzir na importação
         })
       })
       
+      console.log('📥 Resposta recebida - Status:', response.status)
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`)
+      }
+      
       const result = await response.json()
+      console.log('📊 Resultado completo da importação:')
+      console.log('✅ Sucesso:', result.success)
+      console.log('📈 Importados:', result.imported)
+      console.log('⏭️ Pulados:', result.skipped)
+      console.log('❌ Erros:', result.errors)
+      console.log('🌐 Traduzido:', result.translated)
+      console.log('💬 Mensagem:', result.message)
+      if (result.errorMessages?.length) {
+        console.log('🚨 Mensagens de erro:', result.errorMessages)
+      }
+      console.log('📋 Dados completos:', result)
       
       if (result.success) {
-        toast.success(`${result.imported || selectedServices.size} serviços importados com sucesso!`)
+        toast.success(`${result.imported || selectedServices.size} serviços importados e traduzidos com sucesso!`)
         setSelectedServices(new Set())
         // Fechar o modal após importação bem-sucedida
         setTimeout(() => {
           onOpenChange(false)
         }, 1500)
       } else {
+        console.error('❌ Erro na importação:', result.error)
         throw new Error(result.error || 'Erro na importação')
       }
       
-    } catch (error: any) {  
+    } catch (error: any) {
+      console.error('💥 Erro completo na importação:', error)
       toast.error(`Erro na importação: ${error.message}`)
     } finally {
       setLoading(false)

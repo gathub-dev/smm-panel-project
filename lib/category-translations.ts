@@ -2,11 +2,13 @@
  * Sistema de tradução automática dinâmica para categorias
  */
 
+import { translationService } from './translation-service'
+
 // Cache de traduções para evitar chamadas desnecessárias
 const translationCache = new Map<string, string>()
 
 /**
- * Tradução automática dinâmica usando API de tradução
+ * Tradução automática dinâmica usando serviço de tradução melhorado
  */
 export async function translateCategory(category: string): Promise<string> {
   // Verificar cache primeiro
@@ -21,8 +23,8 @@ export async function translateCategory(category: string): Promise<string> {
   }
 
   try {
-    // Tentar tradução via API
-    const translated = await translateWithAPI(category)
+    // Usar o serviço de tradução melhorado
+    const translated = await translationService.translateToPortuguese(category)
     translationCache.set(category, translated)
     return translated
   } catch (error) {

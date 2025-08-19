@@ -72,7 +72,8 @@ import {
   getServiceStats,
   testAPIConnections,
   getServicesList,
-  getServiceCategories
+  getServiceCategories,
+  translateExistingServices
 } from "@/lib/service-actions"
 import { 
   saveAPIKey, 
@@ -289,6 +290,35 @@ const AdminPage = () => {
       
       setLoading(false)
       console.log('🏁 Sincronização finalizada')
+    }
+  }
+
+  const handleTranslateServices = async () => {
+    console.log('🌐 BOTÃO TRADUZIR CLICADO!')
+    
+    setLoading(true)
+    
+    try {
+      console.log('📡 Chamando translateExistingServices...')
+      toast.info('Traduzindo serviços existentes...')
+      
+      const result = await translateExistingServices()
+      console.log('📊 Resultado da tradução:', result)
+      
+      if (result.success) {
+        toast.success(`${result.translated} serviços traduzidos com sucesso!`)
+        console.log('✅ Sucesso! Recarregando dados...')
+        await loadInitialData()
+      } else {
+        console.log('❌ Erro na tradução:', result.error)
+        toast.error(result.error)
+      }
+    } catch (error) {
+      console.log('💥 Erro fatal:', error)
+      toast.error('Erro na tradução')
+    } finally {
+      setLoading(false)
+      console.log('🏁 Tradução finalizada')
     }
   }
 
@@ -1042,6 +1072,16 @@ const AdminPage = () => {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   {loading ? 'Sincronizando...' : 'Sincronizar Serviços'}
+                </Button>
+                <Button 
+                  onClick={handleTranslateServices} 
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  <Globe className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? 'Traduzindo...' : 'Traduzir Serviços'}
                 </Button>
                 <Button 
                   onClick={handleSyncOrders} 
