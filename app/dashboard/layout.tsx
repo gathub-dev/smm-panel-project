@@ -3,6 +3,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import DashboardSidebar from "@/components/dashboard-sidebar"
 import DashboardHeader from "@/components/dashboard-header"
+import { checkIsAdmin } from "@/lib/admin-actions"
 
 export default async function DashboardLayout({
   children,
@@ -25,8 +26,25 @@ export default async function DashboardLayout({
     redirect("/auth/login")
   }
 
-  // Get user profile data
-  const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single()
+  // SOLUÇÃO TEMPORÁRIA: Criar perfil mock para evitar problema de RLS
+  // Verificar se é admin pelo email (evita problema de recursão RLS)
+  const isAdmin = await checkIsAdmin()
+  console.log("Is Admin:", isAdmin)
+  const profile = {
+    id: user.id,
+    email: user.email,
+    full_name: user.user_metadata?.full_name || "",
+    role: isAdmin ? "admin" : "user",
+    status: "active",
+    balance: 0,
+    created_at: user.created_at
+  }
+  
+  console.log("=== PROFILE FIXED ===")
+  console.log("User Email:", user.email)
+  console.log("Is Admin:", isAdmin)
+  console.log("Profile Role:", profile.role)
+  console.log("======================")
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
