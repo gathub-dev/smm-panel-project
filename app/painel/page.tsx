@@ -159,13 +159,11 @@ export default function PainelPage() {
         
         setServicesByCategory(categorized)
       } else {
-        console.error('Resposta da API inválida:', data)
-        toast.error(data.error || 'Erro ao carregar serviços')
+          toast.error(data.error || 'Erro ao carregar serviços')
         setServices([])
         setServicesByCategory({})
       }
     } catch (error) {
-      console.error('Erro ao carregar serviços:', error)
       toast.error('Erro ao conectar com o servidor')
       setServices([])
       setServicesByCategory({})
@@ -200,7 +198,7 @@ export default function PainelPage() {
       ]
       setOrders(mockOrders)
     } catch (error) {
-      console.error('Erro ao carregar pedidos:', error)
+        toast.error('Erro ao carregar pedidos')
     }
   }
 

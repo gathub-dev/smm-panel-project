@@ -108,8 +108,7 @@ export default function LojaPage() {
         toast.error('Erro ao carregar serviços')
       }
     } catch (error) {
-      console.error('Erro ao carregar serviços:', error)
-      toast.error('Erro ao carregar serviços')
+        toast.error('Erro ao carregar serviços')
     } finally {
       setLoading(false)
     }

@@ -81,7 +81,6 @@ export default function OrderCard({ order }: OrderCardProps) {
         alert(result.error)
       }
     } catch (error) {
-      console.error("Cancel order error:", error)
       alert("Failed to cancel order")
     } finally {
       setLoading(false)

@@ -160,10 +160,8 @@ const AdminPage = () => {
         .map(q => parseInt(q))
         .filter(q => q > 0)
       
-      console.log('📦 [QUANTITIES] Processadas:', quantities)
       setEditForm(prev => ({ ...prev, quantities }))
     } catch (error) {
-      console.error('❌ [QUANTITIES] Erro ao processar:', error)
     }
   }, [])
 
@@ -224,7 +222,6 @@ const AdminPage = () => {
 
   const loadInitialData = async () => {
     try {
-      console.log('📊 Carregando dados iniciais...')
       
       // Otimização: carregar dados em paralelo para melhor performance
       const [serviceResult, categoriesResult, platformsResult, apiResult, syncResult] = await Promise.all([
@@ -245,15 +242,11 @@ const AdminPage = () => {
       }
       
       if (platformsResult.success) {
-        console.log('🏢 Plataformas carregadas:', platformsResult.platforms?.length || 0)
         setPlatforms(platformsResult.platforms || [])
-      } else {
-        console.error('❌ Erro ao carregar plataformas:', platformsResult.error)
       }
       
       if (apiResult.success) {
         setApiKeys(apiResult.apiKeys)
-        console.log('✅ API Keys carregadas:', apiResult.apiKeys.length, 'chaves')
       }
       
       if (syncResult.success) {
@@ -265,15 +258,11 @@ const AdminPage = () => {
         if (connectionResult.success) {
           setApiConnections(connectionResult.connections)
           setProviderBalances(connectionResult.balances)
-          console.log('✅ Conexões testadas:', connectionResult.connections)
-        }
+          }
       }).catch(error => {
-        console.log('❌ Erro ao testar conexões:', error)
       })
       
-      console.log('🏁 DADOS CARREGADOS COM SUCESSO')
     } catch (error) {
-      console.error('💥 ERRO FATAL ao carregar dados:', error)
     }
   }
 
@@ -453,8 +442,6 @@ const AdminPage = () => {
   }
 
   const handleEditService = (service: any) => {
-    console.log('🔧 [EDIT-SERVICE] Editando serviço:', service)
-    
     // Processar quantities corretamente
     let quantities = []
     if (service.quantities) {
@@ -465,13 +452,10 @@ const AdminPage = () => {
         } else if (Array.isArray(service.quantities)) {
           quantities = service.quantities
         }
-      } catch (error) {
-        console.warn('⚠️ [EDIT-SERVICE] Erro ao processar quantities:', error)
+      } catch (error) { 
         quantities = []
       }
     }
-    
-    console.log('📦 [EDIT-SERVICE] Quantities processadas:', quantities)
     
     setEditingService(service)
     setEditForm({
@@ -499,8 +483,7 @@ const AdminPage = () => {
     if (!editingService) return
 
     try {
-      console.log('💾 [SAVE-SERVICE] Salvando serviço:', editingService.id)
-      console.log('💾 [SAVE-SERVICE] Dados do formulário:', editForm)
+
 
       // Validação básica
       if (!editForm.name?.trim()) {
@@ -527,7 +510,7 @@ const AdminPage = () => {
         featured: editForm.featured || false
       })
 
-      console.log('💾 [SAVE-SERVICE] Resultado:', result)
+
 
       if (result.success) {
         toast.success('Serviço atualizado com sucesso!')
@@ -543,7 +526,7 @@ const AdminPage = () => {
         toast.error(result.error || 'Erro ao atualizar serviço')
       }
     } catch (error: any) {
-      console.error('💥 [SAVE-SERVICE] Erro fatal:', error)
+
       toast.error('Erro ao salvar serviço: ' + error.message)
     }
   }
@@ -1671,7 +1654,7 @@ const AdminPage = () => {
                 <Select
                   value={editForm.platform_id}
                   onValueChange={(value) => {
-                    console.log('🔄 Mudando platform_id para:', value)
+
                     setEditForm(prev => ({ ...prev, platform_id: value }))
                   }}
                 >
@@ -1817,7 +1800,7 @@ const AdminPage = () => {
                     value={quantitiesInput}
                     onChange={(e) => {
                       const value = e.target.value
-                      console.log('📦 [QUANTITIES] Digitando:', value)
+
                       setQuantitiesInput(value)
                     }}
                   />

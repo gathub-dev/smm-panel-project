@@ -92,10 +92,8 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
       }
       
       const data = await response.json()
-      console.log('📊 Resposta completa da API:', data)
       
       if (data.success && Array.isArray(data.services)) {
-        console.log('✅ Dados recebidos com sucesso:', data.services.length, 'serviços')
         
         // Usar dados originais sem tradução no preview
         const originalServices = data.services.map((service: APIService) => ({
@@ -115,7 +113,6 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
       }
       
     } catch (error: any) {
-      console.error('💥 Erro detalhado:', error)
       toast.error(`Erro ao carregar serviços: ${error.message}`)
       setServices([])
       setCategories([])
@@ -169,24 +166,19 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
   }
 
   const importSelectedServices = async () => {
-    console.log('🚀 Iniciando importação...')
     
     if (selectedServices.size === 0) {
       toast.error('Selecione pelo menos um serviço para importar')
       return
     }
 
-    console.log('📊 Serviços selecionados:', selectedServices.size)
     
     setLoading(true)
     try {
       const servicesToImport = filteredServices.filter(s => selectedServices.has(s.service))
-      console.log('📦 Serviços para importar:', servicesToImport.length)
-      console.log('🔍 Dados dos serviços:', servicesToImport)
       
       toast.info('Traduzindo serviços selecionados...')
       
-      console.log('📡 Fazendo requisição para API de importação...')
       const response = await fetch('/api/admin/import-services', {
         method: 'POST',
         headers: {
@@ -199,24 +191,13 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
         })
       })
       
-      console.log('📥 Resposta recebida - Status:', response.status)
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`)
       }
       
       const result = await response.json()
-      console.log('📊 Resultado completo da importação:')
-      console.log('✅ Sucesso:', result.success)
-      console.log('📈 Importados:', result.imported)
-      console.log('⏭️ Pulados:', result.skipped)
-      console.log('❌ Erros:', result.errors)
-      console.log('🌐 Traduzido:', result.translated)
-      console.log('💬 Mensagem:', result.message)
-      if (result.errorMessages?.length) {
-        console.log('🚨 Mensagens de erro:', result.errorMessages)
-      }
-      console.log('📋 Dados completos:', result)
+
       
       if (result.success) {
         toast.success(`${result.imported || selectedServices.size} serviços importados e traduzidos com sucesso!`)
@@ -226,12 +207,10 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
           onOpenChange(false)
         }, 1500)
       } else {
-        console.error('❌ Erro na importação:', result.error)
         throw new Error(result.error || 'Erro na importação')
       }
       
-    } catch (error: any) {
-      console.error('💥 Erro completo na importação:', error)
+    } catch (error: any) {  
       toast.error(`Erro na importação: ${error.message}`)
     } finally {
       setLoading(false)

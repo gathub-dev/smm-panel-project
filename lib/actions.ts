@@ -34,7 +34,6 @@ export async function signIn(prevState: any, formData: FormData) {
     // Return success instead of redirecting directly
     return { success: true }
   } catch (error) {
-    console.error("Login error:", error)
     return { error: "An unexpected error occurred. Please try again." }
   }
 }
@@ -77,7 +76,6 @@ export async function signUp(prevState: any, formData: FormData) {
 
     return { success: "Check your email to confirm your account and complete registration." }
   } catch (error) {
-    console.error("Sign up error:", error)
     return { error: "An unexpected error occurred. Please try again." }
   }
 }

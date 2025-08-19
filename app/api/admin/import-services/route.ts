@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { translationService } from '@/lib/translation-service'
 
 export async function POST(request: NextRequest) {
   try {
     const { provider, services, translateOnImport = false } = await request.json()
-    
-    console.log(`🚀 [IMPORT] Importando ${services.length} serviços do ${provider}`)
-    console.log(`📝 [IMPORT] Tradução ativada: ${translateOnImport}`)
-    
+
     // Verificar se é admin
-    const supabase = createClient()
+    const supabase = createServerActionClient({ cookies })
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -20,21 +18,18 @@ export async function POST(request: NextRequest) {
       }, { status: 401 })
     }
 
-    // Temporariamente removendo verificação de admin para debug
-    console.log('⚠️ MODO DEBUG: Pulando verificação de admin na importação')
-    
-    // const { data: userData } = await supabase
-    //   .from("users")
-    //   .select("role")
-    //   .eq("id", user.id)
-    //   .single()
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single()
 
-    // if (userData?.role !== "admin") {
-    //   return NextResponse.json({
-    //     success: false,
-    //     error: 'Acesso negado - apenas administradores'
-    //   }, { status: 403 })
-    // }
+    if (userData?.role !== "admin") {
+      return NextResponse.json({
+        success: false,
+        error: 'Acesso negado - apenas administradores'
+      }, { status: 403 })
+    }
     
     let importedCount = 0
     let skippedCount = 0
@@ -94,8 +89,6 @@ export async function POST(request: NextRequest) {
     // Processar cada serviço
     for (const service of services) {
       try {
-        console.log(`🔄 [PROCESS] Processando serviço ${service.service}: "${service.name}"`)
-        
         // Verificar se já existe
         const { data: existingService } = await supabase
           .from('services')
@@ -105,12 +98,9 @@ export async function POST(request: NextRequest) {
           .single()
         
         if (existingService) {
-          console.log(`⏭️ [PROCESS] Serviço ${service.service} já existe, pulando`)
           skippedCount++
           continue
         }
-        
-        console.log(`🆕 [PROCESS] Serviço ${service.service} é novo, prosseguindo com importação`)
         
         // Aplicar tradução se solicitado
         let serviceName = service.name
@@ -119,18 +109,10 @@ export async function POST(request: NextRequest) {
         
         if (translateOnImport) {
           try {
-            console.log(`🌐 [IMPORT-TRANSLATE] Traduzindo: "${service.name}"`)
-            
             serviceName = await translationService.translateToPortuguese(service.name)
             serviceCategory = await translationService.translateToPortuguese(service.category)
-            serviceDescription = serviceName // Usar nome traduzido como descrição
-            
-            const translated = serviceName !== service.name || serviceCategory !== service.category
-            if (translated) {
-              console.log(`✅ [IMPORT-TRANSLATE] "${service.name}" → "${serviceName}"`)
-            }
+            serviceDescription = serviceName
           } catch (error) {
-            console.error(`❌ [IMPORT-TRANSLATE] Erro na tradução:`, error)
             // Manter valores originais se tradução falhar
           }
         }
@@ -138,9 +120,8 @@ export async function POST(request: NextRequest) {
         const platformName = extractPlatform(serviceName, serviceCategory)
         const serviceTypeName = extractServiceType(serviceName, serviceCategory)
         
-        // Criar/obter plataforma (versão simplificada para debug)
-        console.log(`🏗️ [PLATFORM] Criando/obtendo plataforma: ${platformName}`)
-        let platformId = 1 // ID padrão temporário
+        // Criar/obter plataforma
+        let platformId = 1
         
         try {
           const { data: existingPlatform } = await supabase
@@ -151,7 +132,6 @@ export async function POST(request: NextRequest) {
           
           if (existingPlatform) {
             platformId = existingPlatform.id
-            console.log(`✅ [PLATFORM] Plataforma existente encontrada: ${platformId}`)
           } else {
             const { data: newPlatform, error: platformError } = await supabase
               .from('platforms')
@@ -160,25 +140,21 @@ export async function POST(request: NextRequest) {
               .single()
             
             if (platformError) {
-              console.error(`❌ [PLATFORM] Erro ao criar plataforma:`, platformError)
               errorCount++
               errors.push(`Erro ao criar plataforma ${platformName}: ${platformError.message}`)
               continue
             }
             
             platformId = newPlatform.id
-            console.log(`✅ [PLATFORM] Nova plataforma criada: ${platformId}`)
           }
         } catch (error: any) {
-          console.error(`❌ [PLATFORM] Erro geral:`, error)
           errorCount++
           errors.push(`Erro ao processar plataforma ${platformName}: ${error.message}`)
           continue
         }
         
-        // Criar/obter tipo de serviço (versão simplificada para debug)
-        console.log(`🔧 [SERVICE_TYPE] Criando/obtendo tipo: ${serviceTypeName}`)
-        let serviceTypeId = 1 // ID padrão temporário
+        // Criar/obter tipo de serviço
+        let serviceTypeId = 1
         
         try {
           const { data: existingType } = await supabase
@@ -189,7 +165,6 @@ export async function POST(request: NextRequest) {
           
           if (existingType) {
             serviceTypeId = existingType.id
-            console.log(`✅ [SERVICE_TYPE] Tipo existente encontrado: ${serviceTypeId}`)
           } else {
             const { data: newType, error: typeError } = await supabase
               .from('service_types')
@@ -198,17 +173,14 @@ export async function POST(request: NextRequest) {
               .single()
             
             if (typeError) {
-              console.error(`❌ [SERVICE_TYPE] Erro ao criar tipo:`, typeError)
               errorCount++
               errors.push(`Erro ao criar tipo de serviço ${serviceTypeName}: ${typeError.message}`)
               continue
             }
             
             serviceTypeId = newType.id
-            console.log(`✅ [SERVICE_TYPE] Novo tipo criado: ${serviceTypeId}`)
           }
         } catch (error: any) {
-          console.error(`❌ [SERVICE_TYPE] Erro geral:`, error)
           errorCount++
           errors.push(`Erro ao processar tipo de serviço ${serviceTypeName}: ${error.message}`)
           continue
@@ -216,18 +188,16 @@ export async function POST(request: NextRequest) {
         
         // Calcular preço com markup (20% padrão)
         const providerRate = parseFloat(service.rate)
-        const markupValue = 20 // 20% padrão
+        const markupValue = 20
         const finalRate = providerRate * (1 + markupValue / 100)
         
         // Inserir serviço
-        console.log(`💾 [INSERT] Inserindo serviço: ${service.service}`)
-        
         const serviceData = {
           platform_id: platformId,
           service_type_id: serviceTypeId,
           provider_service_id: service.service,
-          name: serviceName, // Nome traduzido se translateOnImport = true
-          description: serviceDescription, // Descrição traduzida se translateOnImport = true
+          name: serviceName,
+          description: serviceDescription,
           provider: provider,
           provider_rate: providerRate,
           rate: finalRate,
@@ -240,25 +210,21 @@ export async function POST(request: NextRequest) {
           status: 'active',
           markup_type: 'percentage',
           markup_value: markupValue,
-          platform: platformName, // Campo legado
-          category: serviceCategory, // Categoria traduzida se translateOnImport = true
+          platform: platformName,
+          category: serviceCategory,
           sync_enabled: true
         }
-        
-        console.log(`📝 [INSERT] Dados do serviço:`, serviceData)
         
         const { error: insertError } = await supabase
           .from('services')
           .insert(serviceData)
         
         if (insertError) {
-          console.error(`❌ [INSERT] Erro ao inserir serviço ${service.service}:`, insertError)
           errorCount++
           errors.push(`Erro ao inserir serviço ${service.service}: ${insertError.message}`)
           continue
         }
         
-        console.log(`✅ [INSERT] Serviço ${service.service} salvo: "${serviceName}"`)
         importedCount++
         
       } catch (error: any) {
@@ -266,8 +232,6 @@ export async function POST(request: NextRequest) {
         errors.push(`Erro ao processar serviço ${service.service}: ${error.message}`)
       }
     }
-    
-    console.log(`✅ [IMPORT] Resultado: ${importedCount} importados, ${skippedCount} já existiam, ${errorCount} erros`)
     
     const message = translateOnImport 
       ? `${importedCount} serviços importados e traduzidos com sucesso!`
@@ -278,13 +242,12 @@ export async function POST(request: NextRequest) {
       imported: importedCount,
       skipped: skippedCount,
       errors: errorCount,
-      errorMessages: errors.slice(0, 5), // Limitar erros mostrados
+      errorMessages: errors.slice(0, 5),
       translated: translateOnImport,
       message
     })
     
   } catch (error: any) {
-    console.error('❌ [IMPORT] Erro geral:', error)
     return NextResponse.json({
       success: false,
       error: error.message || 'Erro interno do servidor'

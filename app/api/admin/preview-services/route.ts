@@ -4,9 +4,7 @@ import { previewServicesFromAPI } from '@/lib/preview-services-actions'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 Preview API - Início da requisição')
     const { provider, onlyNew } = await request.json()
-    console.log('📝 Parâmetros recebidos:', { provider, onlyNew })
 
     // Verificar se é admin
     const supabase = createClient()
@@ -47,8 +45,6 @@ export async function POST(request: NextRequest) {
       cancel: false
     }))
     
-    console.log('🎉 Processamento concluído - Enviando resposta com', processedServices.length, 'serviços')
-    
     return NextResponse.json({
       success: true,
       services: processedServices,
@@ -57,7 +53,6 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error: any) {
-    console.log('💥 Erro na API de preview:', error)
     return NextResponse.json({
       success: false,
       error: error.message || 'Erro interno do servidor'

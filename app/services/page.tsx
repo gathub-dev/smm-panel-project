@@ -12,127 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Search, Star, Info, TrendingUp, Users, Heart, Eye, MessageCircle } from "lucide-react"
 
 // Simulação de dados dos serviços (em produção viria da API)
-const mockServices = [
-  {
-    id: "1032",
-    name: "🇧🇷 Seguidores Brasileiros 🔥 R30 ⚡ (S2) ⚡",
-    category: "Instagram Seguidores",
-    price: 46.50,
-    min: 10,
-    max: 10000,
-    description: "Seguidores brasileiros de alta qualidade com garantia de 30 dias",
-    details: {
-      startTime: "Instantâneo (pode mudar em atualizações)",
-      speed: "~10.000/hora",
-      exclusive: true,
-      dropRate: "~0-5%",
-      refill: "30 dias",
-      quality: "Seguidores reais mistos"
-    }
-  },
-  {
-    id: "997",
-    name: "📱 Seguidores Mistos reais (🔥R365) ⚡ (S1) ⚡",
-    category: "Instagram Seguidores", 
-    price: 28.20,
-    min: 50,
-    max: 20000,
-    description: "Seguidores mistos reais com garantia de 365 dias",
-    details: {
-      startTime: "0-1 hora",
-      speed: "1-5K/dia",
-      exclusive: false,
-      dropRate: "~0-3%",
-      refill: "365 dias",
-      quality: "Seguidores reais mistos"
-    }
-  },
-  {
-    id: "1000",
-    name: "📱 Seguidores Mistos reais (🔥R365) ⚡ (S2) ⚡",
-    category: "Instagram Seguidores",
-    price: 27.46,
-    min: 50,
-    max: 1000000,
-    description: "Seguidores mistos reais premium com garantia estendida",
-    details: {
-      startTime: "0-1 hora",
-      speed: "2-10K/dia", 
-      exclusive: false,
-      dropRate: "~0-2%",
-      refill: "365 dias",
-      quality: "Seguidores reais mistos premium"
-    }
-  },
-  {
-    id: "996",
-    name: "📹 Visualizações em REELS S1 ⚡",
-    category: "Instagram Views",
-    price: 0.14,
-    min: 100,
-    max: 2147483647,
-    description: "Visualizações para Reels do Instagram com entrega rápida",
-    details: {
-      startTime: "0-30 minutos",
-      speed: "100K-1M/dia",
-      exclusive: false,
-      dropRate: "~0%",
-      refill: "Não",
-      quality: "Visualizações reais"
-    }
-  },
-  {
-    id: "1035",
-    name: "💖 Curtidas Brasileiras ⚡ 🔥 (S1)",
-    category: "Instagram Curtidas",
-    price: 10.85,
-    min: 10,
-    max: 6000,
-    description: "Curtidas de usuários brasileiros reais",
-    details: {
-      startTime: "0-1 hora",
-      speed: "500-2K/dia",
-      exclusive: false,
-      dropRate: "~0-1%",
-      refill: "Não",
-      quality: "Curtidas brasileiras reais"
-    }
-  },
-  {
-    id: "913",
-    name: "TikTok 🎬 Seguidores Brasileiros | 🔥 R30 | ⚡",
-    category: "TikTok Seguidores",
-    price: 26.50,
-    min: 10,
-    max: 1000000,
-    description: "Seguidores brasileiros para TikTok com garantia",
-    details: {
-      startTime: "0-2 horas",
-      speed: "1-5K/dia",
-      exclusive: false,
-      dropRate: "~0-3%",
-      refill: "30 dias",
-      quality: "Seguidores brasileiros reais"
-    }
-  },
-  {
-    id: "975",
-    name: "Tik Tok 💜 Curtidas Mistas Reais | ⚡ {R30}",
-    category: "TikTok Curtidas",
-    price: 0.33,
-    min: 10,
-    max: 100000,
-    description: "Curtidas mistas reais para TikTok",
-    details: {
-      startTime: "0-1 hora",
-      speed: "10-50K/dia",
-      exclusive: false,
-      dropRate: "~0-2%",
-      refill: "30 dias",
-      quality: "Curtidas mistas reais"
-    }
-  }
-]
+
 
 export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([])
@@ -188,7 +68,6 @@ export default function ServicesPage() {
       // Carregar serviços iniciais
       await loadServices()
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
     } finally {
       setLoading(false)
     }

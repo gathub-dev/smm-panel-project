@@ -60,16 +60,13 @@ export function CurrencyConfigSection() {
   const loadCurrencyConfig = async () => {
     setLoading(true)
     try {
-      console.log(`📋 [CurrencyConfig] Carregando configurações...`)
-      
+
       // Carregar configurações (uma query só)
       const result = await getMultipleSettings([
         'currency_mode',
         'usd_brl_rate', 
         'markup_percentage'
       ])
-
-      console.log(`📋 [CurrencyConfig] Resultado das configurações:`, result)
 
       if (result?.success && result.data) {
         const settings = result.data
@@ -78,13 +75,10 @@ export function CurrencyConfigSection() {
         const rate = settings['usd_brl_rate']?.value || '5.50'
         const markup = settings['markup_percentage']?.value || '20'
         
-        console.log(`📋 [CurrencyConfig] Configurações carregadas:`, { mode, rate, markup })
-        
         setCurrencyMode(mode)
         setUsdBrlRate(rate)
         setMarkupPercentage(markup)
       } else {
-        console.log(`⚠️ [CurrencyConfig] Usando valores padrão - erro:`, result?.error)
         setCurrencyMode('manual')
         setUsdBrlRate('5.50')
         setMarkupPercentage('20')
@@ -93,7 +87,6 @@ export function CurrencyConfigSection() {
       // Carregar informações da cotação (opcional, não bloqueia)
       loadExchangeRateInfo().catch(console.error)
     } catch (error) {
-      console.log(`❌ [CurrencyConfig] Erro ao carregar configurações:`, error)
       toast.error("Erro ao carregar configurações")
       // Usar valores padrão em caso de erro
       setCurrencyMode('manual')
@@ -109,14 +102,12 @@ export function CurrencyConfigSection() {
       const info = await getExchangeRateInfo()
       setExchangeInfo(info)
     } catch (error) {
-      console.error("Erro ao carregar informações da cotação:", error)
     }
   }
 
   const handleSaveConfig = async () => {
     setSaving(true)
     try {
-      console.log(`🎯 [CurrencyConfig] Iniciando salvamento das configurações...`)
       
       const settings = [
         { key: 'currency_mode', value: currencyMode },
@@ -124,29 +115,18 @@ export function CurrencyConfigSection() {
         { key: 'markup_percentage', value: markupPercentage }
       ]
 
-      console.log(`🎯 [CurrencyConfig] Configurações para salvar:`, settings)
-
       // Salvar todas as configurações
       for (const setting of settings) {
-        console.log(`🎯 [CurrencyConfig] Salvando: ${setting.key} = ${setting.value}`)
-        
         const result = await saveSetting(setting.key, setting.value)
         
-        console.log(`🎯 [CurrencyConfig] Resultado para ${setting.key}:`, result)
-        
         if (!result.success) {
-          console.log(`❌ [CurrencyConfig] Falha ao salvar ${setting.key}:`, result.error)
           throw new Error(result.error || `Erro ao salvar ${setting.key}`)
         }
-        
-        console.log(`✅ [CurrencyConfig] ${setting.key} salvo com sucesso!`)
       }
 
-      console.log(`🎉 [CurrencyConfig] Todas as configurações salvas!`)
       toast.success("Configurações salvas com sucesso!")
       await loadExchangeRateInfo()
     } catch (error: any) {
-      console.log(`❌ [CurrencyConfig] Erro geral:`, error)
       toast.error(error.message || "Erro ao salvar configurações")
     } finally {
       setSaving(false)
@@ -174,19 +154,16 @@ export function CurrencyConfigSection() {
   const handleRecalculatePrices = async () => {
     setRecalculating(true)
     try {
-      console.log(`🔄 [CurrencyConfig] Iniciando recálculo de preços...`)
       
       const result = await recalculateAllServicesPrices()
       
-      console.log(`🔄 [CurrencyConfig] Resultado do recálculo:`, result)
       
       if (result.success) {
         toast.success(`${result.data?.servicesUpdated} serviços recalculados com sucesso!`)
       } else {
         toast.error(result.error || "Erro ao recalcular preços")
       }
-    } catch (error) {
-      console.log(`❌ [CurrencyConfig] Erro no recálculo:`, error)
+    } catch (error) { 
       toast.error("Erro ao recalcular preços dos serviços")
     } finally {
       setRecalculating(false)

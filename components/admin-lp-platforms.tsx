@@ -65,7 +65,6 @@ export default function AdminLPPlatforms() {
         toast.error(result.error || 'Erro ao carregar plataformas')
       }
     } catch (error) {
-      console.error('Erro ao carregar plataformas:', error)
       toast.error('Erro ao carregar plataformas')
     } finally {
       setLoading(false)
@@ -89,7 +88,6 @@ export default function AdminLPPlatforms() {
         toast.error(result.error || 'Erro ao atualizar visibilidade')
       }
     } catch (error) {
-      console.error('Erro ao atualizar visibilidade:', error)
       toast.error('Erro ao atualizar visibilidade')
     }
   }
@@ -110,7 +108,6 @@ export default function AdminLPPlatforms() {
         toast.error(result.error || 'Erro ao atualizar ordem')
       }
     } catch (error) {
-      console.error('Erro ao atualizar ordem:', error)
       toast.error('Erro ao atualizar ordem')
     }
   }
@@ -143,8 +140,7 @@ export default function AdminLPPlatforms() {
       } else {
         toast.error(result.error || 'Erro ao atualizar plataforma')
       }
-    } catch (error) {
-      console.error('Erro ao atualizar plataforma:', error)
+    } catch (error) { 
       toast.error('Erro ao atualizar plataforma')
     }
   }

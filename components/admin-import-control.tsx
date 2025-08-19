@@ -86,7 +86,6 @@ export function AdminImportControl() {
   const loadImportData = async () => {
     setLoading(true)
     try {
-      console.log('🔄 Carregando dados de importação...')
       
       // Carregar dados reais das actions
       const [platformsResult, serviceTypesResult, combinationsResult] = await Promise.all([
@@ -98,7 +97,6 @@ export function AdminImportControl() {
       if (platformsResult.success) {
         setPlatforms(platformsResult.data || [])
       } else {
-        console.error('❌ Erro ao carregar plataformas:', platformsResult.error)
         // Fallback para dados mockados se não houver plataformas no banco
         setPlatforms([])
       }
@@ -106,19 +104,16 @@ export function AdminImportControl() {
       if (serviceTypesResult.success) {
         setServiceTypes(serviceTypesResult.data || [])
       } else {
-        console.error('❌ Erro ao carregar tipos de serviços:', serviceTypesResult.error)
         setServiceTypes([])
       }
       
       if (combinationsResult.success) {
         setCombinations(combinationsResult.data || [])
       } else {
-        console.error('❌ Erro ao carregar combinações:', combinationsResult.error)
         setCombinations([])
       }
       
     } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error)
       toast.error('Erro ao carregar dados de importação')
     } finally {
       setLoading(false)
@@ -146,7 +141,6 @@ export function AdminImportControl() {
 
     setImporting(true)
     try {
-      console.log('🚀 Habilitando combinações selecionadas...')
       
       // Preparar dados para a action
       const combinationsToEnable = Array.from(selectedCombinations).map(combination => {
@@ -170,7 +164,6 @@ export function AdminImportControl() {
         
         if (errorCount > 0) {
           toast.error(`${errorCount} combinações falharam. Verifique o console para detalhes.`)
-          console.error('❌ Erros:', errors)
         }
         
         setSelectedCombinations(new Set())
@@ -180,7 +173,6 @@ export function AdminImportControl() {
       }
       
     } catch (error) {
-      console.error('❌ Erro ao habilitar combinações:', error)
       toast.error('Erro ao habilitar combinações')
     } finally {
       setImporting(false)
@@ -190,15 +182,13 @@ export function AdminImportControl() {
   const importFromAPI = async () => {
     setImporting(true)
     try {
-      console.log('📡 Importando serviços da API...')
       
       // Aqui você implementaria a lógica de importação
       // que usa as combinações habilitadas para buscar da API
       
       toast.success('Importação iniciada! Verifique os logs para acompanhar o progresso.')
       
-    } catch (error) {
-      console.error('❌ Erro na importação:', error)
+    } catch (error) {   
       toast.error('Erro na importação')
     } finally {
       setImporting(false)

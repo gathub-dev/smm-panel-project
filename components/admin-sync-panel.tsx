@@ -172,10 +172,9 @@ export function AdminSyncPanel() {
     try {
       const result = await getAvailableCategories()
       if (result.success) {
-        setAvailableCategories(result.categories)
+        setAvailableCategories(result.categories || [])
       }
     } catch (error) {
-      console.log('Erro ao carregar categorias:', error)
     }
   }
 
@@ -193,15 +192,15 @@ export function AdminSyncPanel() {
       })
       
       if (result.success) {
-        setPreviewServices(result.services)
+        setPreviewServices(result.services || [])
         setPreviewStats({
-          total: result.total,
-          mtp: result.providers.mtp,
-          jap: result.providers.jap
+          total: result.total || 0,
+          mtp: result.providers?.mtp || 0,
+          jap: result.providers?.jap || 0
         })
         setMessage({ 
           type: 'success', 
-          text: `Preview carregado: ${result.total} serviços encontrados (MTP: ${result.providers.mtp}, JAP: ${result.providers.jap})` 
+          text: `Preview carregado: ${result.total} serviços encontrados (MTP: ${result.providers?.mtp || 0}, JAP: ${result.providers?.jap || 0 || 0})` 
         })
       } else {
         setMessage({ type: 'error', text: result.error || 'Erro no preview' })
