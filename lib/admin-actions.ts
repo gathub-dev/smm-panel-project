@@ -33,7 +33,7 @@ export async function demoteAdminToUser(email: string) {
     revalidatePath("/dashboard/admin")
     return { success: true, message: "Privilégios de administrador removidos com sucesso!" }
   } catch (error: any) {
-    return { success: false, message: error.message }
+    return { success: false, message: error.message } 
   }
 }
 
@@ -44,8 +44,20 @@ export async function checkIsAdmin() {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return false
-
-  const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-
-  return userData?.role === "admin"
+  
+  console.log("user:", user)
+  
+  // Primeiro, verificar no user_metadata (mais confiável para autenticação do Supabase)
+  if (user.user_metadata?.role === "admin") {
+    return true
+  }
+  
+  // Como fallback, verificar na tabela users
+  try {
+    const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
+    return userData?.role === "admin"
+  } catch (error) {
+    console.log("Erro ao verificar role na tabela users:", error)
+    return false
+  }
 }

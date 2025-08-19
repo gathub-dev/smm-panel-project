@@ -43,17 +43,27 @@ async function checkAdminAccess() {
     return { success: false, error: "Usuário não autenticado" }
   }
 
-  const { data: userData } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", user.id)
-    .single()
-
-  if (userData?.role !== "admin") {
-    return { success: false, error: "Acesso negado - apenas administradores" }
+  // Primeiro, verificar no user_metadata (mais confiável)
+  if (user.user_metadata?.role === "admin") {
+    return { success: true, user }
   }
 
-  return { success: true, user }
+  // Como fallback, verificar na tabela users
+  try {
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+
+    if (userData?.role === "admin") {
+      return { success: true, user }
+    }
+  } catch (error) {
+    console.log("Erro ao verificar role na tabela users:", error)
+  }
+
+  return { success: false, error: "Acesso negado - apenas administradores" }
 }
 
 // Buscar todas as configurações
@@ -64,7 +74,8 @@ export async function getAllSettings(): Promise<SettingResult> {
       return adminCheck
     }
 
-    const supabase = createAdminClient()
+    // Usar cliente normal ao invés de admin client
+    const supabase = createClient()
     const { data: settings, error } = await supabase
       .from("settings")
       .select("*")

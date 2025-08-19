@@ -5,7 +5,7 @@ import { AdminNavigation } from "@/components/admin-navigation"
 import { AdminSettingsPanel } from "@/components/admin-settings-panel"
 
 export default async function AdminSettingsPage() {
-  const isAdmin = await checkIsAdmin()
+  const isAdmin = await checkIsAdmin()   
 
   if (!isAdmin) {
     redirect("/dashboard")
