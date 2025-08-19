@@ -8,6 +8,7 @@ import { APIManager } from "./providers/api-manager"
 import { getExchangeRate } from "./currency-actions"
 import { convertUsdToBrl, formatBRL, formatUSD } from "./currency-utils"
 import { translateCategory, getBothCategoryVersions } from "./category-translations"
+import { getSetting } from "./settings-actions"
 
 /**
  * Sincronizar todos os serviços dos provedores
@@ -509,6 +510,34 @@ export async function getServicesList(filters?: {
       throw servicesError
     }
 
+    // Buscar configurações atuais para cálculo dinâmico
+    console.log('💰 [getServicesList] Buscando configurações para cálculo dinâmico...')
+    const markupResult = await getSetting('markup_percentage')
+    const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
+    const exchangeRate = await getExchangeRate()
+    
+    console.log(`💱 [getServicesList] Cotação: ${exchangeRate}, Markup: ${markup}%`)
+
+    // Recalcular preços dinamicamente para admin
+    const servicesWithDynamicPrices = services?.map(service => {
+      const providerRateUSD = parseFloat(service.provider_rate) || 0
+      
+      if (providerRateUSD > 0) {
+        const providerRateBRL = providerRateUSD * exchangeRate
+        const finalRateBRL = providerRateBRL * (1 + markup / 100)
+        
+        return {
+          ...service,
+          provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
+          rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
+          markup_value: markup, // Markup atual
+          exchange_rate: exchangeRate // Taxa atual
+        }
+      }
+      
+      return service
+    }) || []
+
     // Contar total para paginação
     let countQuery = supabase
       .from('services')
@@ -538,7 +567,7 @@ export async function getServicesList(filters?: {
 
     return {
       success: true,
-      services: services || [],
+      services: servicesWithDynamicPrices,
       pagination: {
         page,
         limit,

@@ -27,6 +27,12 @@ export function AdminNavigation() {
       label: "Sincronização",
       icon: RefreshCw,
       description: "Sincronizar serviços"
+    },
+    {
+      href: "/dashboard/admin/settings",
+      label: "Configurações",
+      icon: Settings,
+      description: "Configurações do sistema"
     }
   ]
 

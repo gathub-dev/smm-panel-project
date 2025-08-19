@@ -436,8 +436,10 @@ const AdminPage = () => {
 
   const calculateFinalRate = () => {
     if (!editingService) return { brl: 0, usd: 0 }
-    const baseRateBRL = editingService.provider_rate * 5.5
+    // Usar valor dinâmico se disponível, senão fallback
+    const baseRateBRL = editingService.provider_rate_brl || (editingService.provider_rate * (editingService.exchange_rate || 5.5))
     const baseRateUSD = editingService.provider_rate
+    const currentExchangeRate = editingService.exchange_rate || 5.5
     
     let finalBRL, finalUSD
     
@@ -446,7 +448,7 @@ const AdminPage = () => {
       finalUSD = baseRateUSD * (1 + editForm.markup_value / 100)
     } else {
       finalBRL = baseRateBRL + editForm.markup_value
-      finalUSD = baseRateUSD + (editForm.markup_value / 5.5) // Converter markup para USD
+      finalUSD = baseRateUSD + (editForm.markup_value / currentExchangeRate) // Converter markup para USD
     }
     
     return { brl: finalBRL, usd: finalUSD }
@@ -1066,14 +1068,14 @@ const AdminPage = () => {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-mono text-sm">R$ {(service.provider_rate * 5.5).toFixed(4)}</div>
+                                <div className="font-mono text-sm">R$ {(service.provider_rate_brl || (service.provider_rate * 5.5)).toFixed(4)}</div>
                                 <div className="font-mono text-xs text-muted-foreground">${service.provider_rate}</div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
                                 <div className="font-mono text-sm font-medium text-green-600">R$ {service.rate?.toFixed(4) || '0.0000'}</div>
-                                <div className="font-mono text-xs text-muted-foreground">${(service.rate / 5.5).toFixed(4)}</div>
+                                <div className="font-mono text-xs text-muted-foreground">${(service.rate / (service.exchange_rate || 5.5)).toFixed(4)}</div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1277,7 +1279,7 @@ const AdminPage = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Preço Original:</span>
                     <div className="text-right">
-                      <div className="font-mono">R$ {(editingService.provider_rate * 5.5).toFixed(4)}</div>
+                      <div className="font-mono">R$ {(editingService.provider_rate_brl || (editingService.provider_rate * 5.5)).toFixed(4)}</div>
                       <div className="font-mono text-xs text-muted-foreground">${editingService.provider_rate}</div>
                     </div>
                   </div>

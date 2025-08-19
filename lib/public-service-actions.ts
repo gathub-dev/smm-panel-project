@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@supabase/supabase-js"
+import { getExchangeRate } from "@/lib/currency-actions"
+import { getSetting } from "@/lib/settings-actions"
 
 /**
  * Buscar serviços públicos para exibição aos clientes
@@ -66,6 +68,34 @@ export async function getPublicServices(filters?: {
       throw servicesError
     }
 
+    // Buscar configurações atuais para cálculo dinâmico
+    console.log('💰 Buscando configurações para cálculo dinâmico...')
+    const markupResult = await getSetting('markup_percentage')
+    const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
+    const exchangeRate = await getExchangeRate()
+    
+    console.log(`💱 Cotação: ${exchangeRate}, Markup: ${markup}%`)
+
+    // Recalcular preços dinamicamente
+    const servicesWithDynamicPrices = services?.map(service => {
+      const providerRateUSD = parseFloat(service.provider_rate) || 0
+      
+      if (providerRateUSD > 0) {
+        const providerRateBRL = providerRateUSD * exchangeRate
+        const finalRateBRL = providerRateBRL * (1 + markup / 100)
+        
+        return {
+          ...service,
+          provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
+          rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
+          markup_value: markup, // Markup atual
+          exchange_rate: exchangeRate // Taxa atual
+        }
+      }
+      
+      return service
+    }) || []
+
     // Contar total para paginação
     let countQuery = supabase
       .from('services')
@@ -88,7 +118,7 @@ export async function getPublicServices(filters?: {
 
     return {
       success: true,
-      services: services || [],
+      services: servicesWithDynamicPrices,
       pagination: {
         page,
         limit,
