@@ -50,14 +50,12 @@ export async function getMostSoldByCategory(category: string, limit: number = 5)
   try {
     const supabase = createClient()
     
-    const query = supabase
+    const { data, error } = await (supabase as any)
       .from('most_sold_services')
       .select('*')
       .eq('shop_category', category)
       .order('total_orders', { ascending: false })
       .limit(limit)
-    
-    const { data, error } = await query
     
     if (error) {
       return []
@@ -81,30 +79,24 @@ export async function getOrdersStats() {
     
     // Total de pedidos nos últimos 30 dias
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const totalQuery = supabase
+    const { count: totalOrdersCount, error: totalError } = await (supabase as any)
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', thirtyDaysAgo)
     
-    const { count: totalOrdersCount, error: totalError } = await totalQuery
-    
     // Pedidos completados nos últimos 30 dias
-    const completedQuery = supabase
+    const { count: completedOrdersCount, error: completedError } = await (supabase as any)
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'completed')
       .gte('created_at', thirtyDaysAgo)
     
-    const { count: completedOrdersCount, error: completedError } = await completedQuery
-    
     // Receita total nos últimos 30 dias
-    const revenueQuery = supabase
+    const { data: revenueData, error: revenueError } = await (supabase as any)
       .from('orders')
       .select('total_price')
       .eq('status', 'completed')
       .gte('created_at', thirtyDaysAgo)
-    
-    const { data: revenueData, error: revenueError } = await revenueQuery
     
     const totalRevenue = revenueData?.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0) || 0
     
