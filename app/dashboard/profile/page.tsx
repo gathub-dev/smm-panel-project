@@ -13,6 +13,9 @@ export default async function ProfilePage() {
 
   // Get user profile
   const { data: profile } = await supabase.from("users").select("*").eq("id", user.id).single()
+  
+  // Get user role (prioritize user_metadata, fallback to profile)
+  const userRole = user.user_metadata?.role || profile?.role || "user"
 
   return (
     <div className="space-y-6">
@@ -43,7 +46,7 @@ export default async function ProfilePage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Role</span>
-                <Badge variant="outline">{profile?.role || "user"}</Badge>
+                <Badge variant="outline">{userRole}</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Member Since</span>
