@@ -19,11 +19,12 @@ function createAdminClient() {
 export interface LPPlatform {
   id: string
   name: string
+  display_name: string
   description: string
   icon: string
   platform_type: string
-  lp_visible: boolean
-  lp_order: number
+  is_visible: boolean
+  sort_order: number
   services_count?: number
 }
 
@@ -58,12 +59,13 @@ export async function getAllLPPlatforms(): Promise<{ success: boolean; platforms
         
         return {
           id: platform.id,
-          name: platform.display_name,
-          description: platform.description,
+          name: platform.name,
+          display_name: platform.display_name || platform.name, // Fallback para name se display_name não existir
+          description: platform.description || '',
           icon: platform.icon,
           platform_type: platform.name,
-          lp_visible: platform.lp_visible,
-          lp_order: platform.sort_order,
+          is_visible: platform.lp_visible !== undefined ? platform.lp_visible : false, // Fallback para false se não existir
+          sort_order: platform.sort_order || 0,
           services_count: count || 0
         }
       })
@@ -88,15 +90,42 @@ export async function getVisibleLPPlatforms(): Promise<{ success: boolean; platf
     const supabase = createAdminClient()
     
     const { data: platforms, error } = await supabase
-      .rpc('get_lp_platforms')
+      .from('platforms')
+      .select('*')
+      .eq('lp_visible', true)
+      .order('sort_order', { ascending: true })
     
     if (error) {
       console.error('❌ [LP-PLATFORMS] Erro ao buscar plataformas visíveis:', error)
       return { success: false, error: error.message }
     }
     
-    console.log(`✅ [LP-PLATFORMS] Encontradas ${platforms?.length || 0} plataformas visíveis`)
-    return { success: true, platforms: platforms || [] }
+    // Contar serviços por plataforma
+    const platformsWithCount = await Promise.all(
+      (platforms || []).map(async (platform) => {
+        const { count } = await supabase
+          .from('services')
+          .select('*', { count: 'exact', head: true })
+          .eq('platform_id', platform.id)
+          .eq('lp_visible', true)
+          .eq('status', 'active')
+        
+        return {
+          id: platform.id,
+          name: platform.name,
+          display_name: platform.display_name || platform.name, // Fallback para name se display_name não existir
+          description: platform.description || '',
+          icon: platform.icon,
+          platform_type: platform.name,
+          is_visible: platform.lp_visible !== undefined ? platform.lp_visible : false, // Fallback para false se não existir
+          sort_order: platform.sort_order || 0,
+          services_count: count || 0
+        }
+      })
+    )
+    
+    console.log(`✅ [LP-PLATFORMS] Encontradas ${platformsWithCount.length} plataformas visíveis`)
+    return { success: true, platforms: platformsWithCount }
     
   } catch (error: any) {
     console.error('❌ [LP-PLATFORMS] Erro geral:', error)
@@ -113,8 +142,35 @@ export async function getLPServicesByVisiblePlatforms(): Promise<{ success: bool
     
     const supabase = createAdminClient()
     
+    // Primeiro buscar plataformas visíveis
+    const { data: visiblePlatforms, error: platformError } = await supabase
+      .from('platforms')
+      .select('id')
+      .eq('lp_visible', true)
+    
+    if (platformError) {
+      console.error('❌ [LP-PLATFORMS] Erro ao buscar plataformas visíveis:', platformError)
+      return { success: false, error: platformError.message }
+    }
+    
+    if (!visiblePlatforms || visiblePlatforms.length === 0) {
+      console.log('✅ [LP-PLATFORMS] Nenhuma plataforma visível encontrada')
+      return { success: true, services: [] }
+    }
+    
+    const platformIds = visiblePlatforms.map(p => p.id)
+    
+    // Buscar serviços das plataformas visíveis
     const { data: services, error } = await supabase
-      .rpc('get_lp_services_morethanpanel')
+      .from('services')
+      .select(`
+        *,
+        platforms!inner(id, name, display_name, icon)
+      `)
+      .in('platform_id', platformIds)
+      .eq('lp_visible', true)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
     
     if (error) {
       console.error('❌ [LP-PLATFORMS] Erro ao buscar serviços:', error)
@@ -185,6 +241,40 @@ export async function updatePlatformOrder(
     
     console.log('✅ [LP-PLATFORMS] Ordem atualizada com sucesso')
     return { success: true }
+    
+  } catch (error: any) {
+    console.error('❌ [LP-PLATFORMS] Erro geral:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Buscar todas as plataformas para dropdown (simples)
+ */
+export async function getAllPlatformsForSelect(): Promise<{ success: boolean; platforms?: { id: string; name: string; display_name: string }[]; error?: string }> {
+  try {
+    console.log('📋 [LP-PLATFORMS] Buscando plataformas para select...')
+    
+    const supabase = createAdminClient()
+    
+    const { data: platforms, error } = await supabase
+      .from('platforms')
+      .select('id, name, display_name')
+      .order('display_name', { ascending: true })
+    
+    if (error) {
+      console.error('❌ [LP-PLATFORMS] Erro ao buscar plataformas:', error)
+      return { success: false, error: error.message }
+    }
+    
+    const formattedPlatforms = (platforms || []).map(platform => ({
+      id: platform.id,
+      name: platform.name,
+      display_name: platform.display_name || platform.name
+    }))
+    
+    console.log(`✅ [LP-PLATFORMS] Encontradas ${formattedPlatforms.length} plataformas para select`)
+    return { success: true, platforms: formattedPlatforms }
     
   } catch (error: any) {
     console.error('❌ [LP-PLATFORMS] Erro geral:', error)

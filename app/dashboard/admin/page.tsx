@@ -64,6 +64,7 @@ import { AdminUserManagement } from "@/components/admin-user-management"
 import { AdminNavigation } from "@/components/admin-navigation"
 import { AdminSettingsPanel } from "@/components/admin-settings-panel"
 import AdminLPPlatforms from "@/components/admin-lp-platforms"
+import { getAllPlatformsForSelect } from "@/lib/lp-platform-actions"
 import { AdminImportPreview } from "@/components/admin-import-preview"
 import { 
   syncAllServices, 
