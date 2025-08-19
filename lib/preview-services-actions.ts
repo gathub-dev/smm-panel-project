@@ -14,8 +14,7 @@ export async function previewServicesFromAPI(options: {
   category?: string
   onlyNew?: boolean
 }) {
-  console.log('🔍 PREVIEW DE SERVIÇOS DA API')
-  console.log('Opções:', options)
+
   
   const supabase = createServerActionClient({ cookies })
 
@@ -44,18 +43,16 @@ export async function previewServicesFromAPI(options: {
 
     // Preview MTP se solicitado
     if ((options.provider === 'all' || options.provider === 'mtp') && mtpKey) {
-      console.log('📡 Fazendo preview MTP...')
       try {
         const mtpServices = await apiManager.getServices('mtp')
-        console.log(`📊 MTP: ${mtpServices.length} serviços encontrados`)
         
         const processedMTP = mtpServices.map(service => ({
           id: String(service.service), // Garantir que seja string para comparação
           name: translationService.cleanProviderInfo(service.name),
-          description: translationService.cleanProviderInfo(service.description || ''),
+          description: translationService.cleanProviderInfo((service as any).description || ''),
           provider: 'mtp',
           category: translationService.cleanProviderInfo(service.category || 'Outros'),
-          rate: parseFloat(service.rate) || 0,
+          rate: typeof service.rate === 'number' ? service.rate : parseFloat(String(service.rate)) || 0,
           min_quantity: service.min || 1,
           max_quantity: service.max || 1000000,
           status: 'preview'
@@ -63,24 +60,22 @@ export async function previewServicesFromAPI(options: {
         
         allServices.push(...processedMTP)
       } catch (error) {
-        console.log('❌ Erro no preview MTP:', error)
+        // Erro silencioso no preview MTP
       }
     }
 
     // Preview JAP se solicitado
     if ((options.provider === 'all' || options.provider === 'jap') && japKey) {
-      console.log('📡 Fazendo preview JAP...')
       try {
         const japServices = await apiManager.getServices('jap')
-        console.log(`📊 JAP: ${japServices.length} serviços encontrados`)
         
         const processedJAP = japServices.map(service => ({
           id: String(service.service), // Garantir que seja string para comparação
           name: translationService.cleanProviderInfo(service.name),
-          description: translationService.cleanProviderInfo(service.description || ''),
+          description: translationService.cleanProviderInfo((service as any).description || ''),
           provider: 'jap',
           category: translationService.cleanProviderInfo(service.category || 'Outros'),
-          rate: parseFloat(service.rate) || 0,
+          rate: typeof service.rate === 'number' ? service.rate : parseFloat(String(service.rate)) || 0,
           min_quantity: service.min || 1,
           max_quantity: service.max || 1000000,
           status: 'preview'
@@ -88,7 +83,7 @@ export async function previewServicesFromAPI(options: {
         
         allServices.push(...processedJAP)
       } catch (error) {
-        console.log('❌ Erro no preview JAP:', error)
+        // Erro silencioso no preview JAP
       }
     }
 
@@ -101,42 +96,21 @@ export async function previewServicesFromAPI(options: {
 
     // Filtrar apenas serviços não importados se solicitado
     if (options.onlyNew) {
-      console.log('🔍 Filtrando apenas serviços não importados...')
-      
       // Buscar todos os provider_service_id já importados
       const { data: existingServices, error: existingError } = await supabase
         .from('services')
         .select('provider_service_id, provider')
       
-      if (existingError) {
-        console.error('❌ Erro ao buscar serviços existentes:', existingError)
-      } else {
-        console.log(`🔍 Encontrados ${existingServices.length} serviços já importados no banco`)
-        
+      if (!existingError) {
         const existingIds = new Set(
           existingServices.map(s => `${s.provider}_${String(s.provider_service_id)}`)
         )
         
-        console.log('📋 Primeiros 10 IDs existentes:', Array.from(existingIds).slice(0, 10))
-        console.log('📋 Primeiros 5 serviços da API:', allServices.slice(0, 5).map(s => ({
-          provider: s.provider,
-          id: s.id,
-          name: s.name.substring(0, 50),
-          chaveComparacao: `${s.provider}_${s.id}`
-        })))
-        
-        const beforeCount = allServices.length
         allServices = allServices.filter(service => {
           const serviceKey = `${service.provider}_${service.id}`
           const exists = existingIds.has(serviceKey)
-          if (exists) {
-            console.log(`⏭️ Pulando serviço já importado: ${serviceKey} - ${service.name.substring(0, 30)}`)
-          }
           return !exists
         })
-        const afterCount = allServices.length
-        
-        console.log(`📊 Filtro aplicado: ${beforeCount} → ${afterCount} serviços (${beforeCount - afterCount} já importados)`)
       }
     }
 
@@ -148,7 +122,7 @@ export async function previewServicesFromAPI(options: {
     // Ordenar por nome
     allServices.sort((a, b) => a.name.localeCompare(b.name))
 
-    console.log(`✅ Preview concluído: ${allServices.length} serviços`)
+
 
     return {
       success: true,
@@ -161,7 +135,6 @@ export async function previewServicesFromAPI(options: {
     }
 
   } catch (error) {
-    console.error('💥 Erro no preview:', error)
     return { 
       success: false, 
       error: `Erro no preview: ${error instanceof Error ? error.message : String(error)}` 
@@ -207,7 +180,7 @@ export async function getAvailableCategories() {
           }
         })
       } catch (error) {
-        console.log('Erro ao buscar categorias MTP:', error)
+        // Erro silencioso ao buscar categorias MTP
       }
     }
 
@@ -221,7 +194,7 @@ export async function getAvailableCategories() {
           }
         })
       } catch (error) {
-        console.log('Erro ao buscar categorias JAP:', error)
+        // Erro silencioso ao buscar categorias JAP
       }
     }
 
@@ -233,7 +206,6 @@ export async function getAvailableCategories() {
     }
 
   } catch (error) {
-    console.error('Erro ao obter categorias:', error)
     return { 
       success: false, 
       error: `Erro ao obter categorias: ${error instanceof Error ? error.message : String(error)}` 

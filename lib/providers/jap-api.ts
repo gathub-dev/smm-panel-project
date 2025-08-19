@@ -109,7 +109,6 @@ export class JustAnotherPanelAPI {
         throw new Error(`Invalid JSON response: ${text}`)
       }
     } catch (error) {
-      console.error('JAP API Error:', error)
       throw error
     }
   }

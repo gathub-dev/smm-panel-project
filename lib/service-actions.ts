@@ -33,8 +33,7 @@ export async function translateServiceById(serviceId: number) {
     if (serviceError) return { error: `Erro ao buscar serviço: ${serviceError.message}` }
     if (!service) return { error: "Serviço não encontrado" }
 
-    console.log(`🌐 [TRANSLATE-SERVICE] Traduzindo serviço ID ${serviceId}: ${service.name}`)
-    
+
     // Traduzir
     const translatedName = await translationService.translateToPortuguese(service.name)
     const translatedDescription = service.description ? 
@@ -56,8 +55,6 @@ export async function translateServiceById(serviceId: number) {
       .eq('id', serviceId)
 
     if (updateError) return { error: `Erro ao atualizar serviço: ${updateError.message}` }
-
-    console.log(`✅ [TRANSLATE-SERVICE] Serviço traduzido: "${service.name}" → "${translatedName}"`)
 
     revalidatePath("/dashboard/admin")
     return { 
@@ -208,7 +205,6 @@ async function processService(
       .single()
 
     // 🌍 TRADUÇÃO AUTOMÁTICA - Traduzir dados do serviço para português
-    console.log(`🌐 [SYNC-TRANSLATE] Traduzindo serviço: ${service.name}`)
     
     let translatedData
     try {
@@ -227,11 +223,7 @@ async function processService(
         originalCategory: service.category !== translatedCategory ? service.category : undefined
       }
       
-      console.log(`✅ [SYNC-TRANSLATE] Traduzido: "${service.name}" → "${translatedData.name}"`)
-      console.log(`✅ [SYNC-TRANSLATE] Categoria: "${service.category}" → "${translatedData.category}"`)
-      
     } catch (error) {
-      console.error(`❌ [SYNC-TRANSLATE] Erro na tradução:`, error)
       // Se tudo falhar, usar dados originais MAS SEMPRE limpar informações internas
       translatedData = {
         name: translationService.cleanProviderInfo(service.name),
@@ -350,7 +342,6 @@ export async function updateService(serviceId: string, data: {
   )
 
   try {
-    console.log('🔄 [UPDATE-SERVICE] Atualizando serviço:', serviceId, data)
 
     // Preparar dados para atualização
     const updateData: any = {
@@ -361,7 +352,6 @@ export async function updateService(serviceId: string, data: {
     // Converter quantities para JSON se for array
     if (data.quantities !== undefined) {
       updateData.quantities = JSON.stringify(data.quantities)
-      console.log('📦 [UPDATE-SERVICE] Quantities convertidas:', updateData.quantities)
     }
 
     const { data: updatedData, error } = await supabase
@@ -371,18 +361,15 @@ export async function updateService(serviceId: string, data: {
       .select()
 
     if (error) {
-      console.error('❌ [UPDATE-SERVICE] Erro no banco:', error)
       throw error
     }
 
-    console.log('✅ [UPDATE-SERVICE] Serviço atualizado com sucesso:', updatedData)
     
     revalidatePath("/dashboard/admin")
     revalidatePath("/dashboard/services")
 
     return { success: true, data: updatedData }
-  } catch (error: any) {
-    console.error('💥 [UPDATE-SERVICE] Erro fatal:', error)
+  } catch (error: any) {      
     return { error: `Erro ao atualizar serviço: ${error.message}` }
   }
 }
@@ -693,12 +680,10 @@ export async function translateExistingServices(batchSize: number = 50) {
     const miniBatchSize = 10
     for (let i = 0; i < services.length; i += miniBatchSize) {
       const batch = services.slice(i, i + miniBatchSize)
-      console.log(`📦 Processando lote ${Math.floor(i/miniBatchSize) + 1}: ${batch.length} serviços`)
       
       await Promise.all(batch.map(async (service) => {
         try {
-          console.log(`🌐 [TRANSLATE-BATCH] Iniciando tradução do serviço ID ${service.id}: "${service.name}"`)
-          
+                
           // Traduzir dados do serviço
           const translatedData = await translationService.translateServiceData({
             name: service.name,

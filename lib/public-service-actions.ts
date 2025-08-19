@@ -75,12 +75,10 @@ export async function getPublicServices(filters?: {
     }
 
     // Buscar configurações atuais para cálculo dinâmico
-    console.log('💰 Buscando configurações para cálculo dinâmico...')
     const markupResult = await getSetting('markup_percentage')
     const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
     const exchangeRate = await getExchangeRate()
     
-    console.log(`💱 Cotação: ${exchangeRate}, Markup: ${markup}%`)
 
     // Recalcular preços dinamicamente
     const servicesWithDynamicPrices = services?.map(service => {
@@ -112,11 +110,9 @@ export async function getPublicServices(filters?: {
         if (hasCustomMarkup && serviceMarkupType === 'fixed') {
           // Valor fixo em BRL - PREÇO FINAL EXATO
           finalRateBRL = finalMarkupValue
-          console.log(`💵 [getPublicServices] Serviço ${service.id}: preço fixo R$ ${finalMarkupValue}`)
         } else {
           // Porcentagem (personalizada ou padrão)
           finalRateBRL = providerRateBRL * (1 + finalMarkupValue / 100)
-          console.log(`📊 [getPublicServices] Serviço ${service.id}: markup ${finalMarkupValue}% ${hasCustomMarkup ? '(personalizado)' : '(padrão)'}`)
         }
         
         return {
@@ -162,7 +158,7 @@ export async function getPublicServices(filters?: {
         totalPages: Math.ceil((totalCount || 0) / limit)
       }
     }
-  } catch (error) {
+      } catch (error) {
     return { error: `Erro ao buscar serviços: ${error}` }
   }
 }

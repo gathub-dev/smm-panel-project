@@ -4,9 +4,7 @@
  * Teste direto das APIs MTP/JAP do lado do servidor (sem CORS)
  */
 export async function testAPIDirectly(provider: 'mtp' | 'jap', apiKey: string) {
-  try {
-    console.log(`🧪 Testando ${provider.toUpperCase()} diretamente...`)
-    
+  try {       
     const apiUrls = {
       mtp: 'https://morethanpanel.com/api/v2',
       jap: 'https://justanotherpanel.com/api/v2'
@@ -21,7 +19,6 @@ export async function testAPIDirectly(provider: 'mtp' | 'jap', apiKey: string) {
     })
 
     const responseText = await response.text()
-    console.log(`📊 ${provider.toUpperCase()} Response:`, responseText)
 
     // Tentar parsear como JSON
     let parsedResponse
@@ -39,7 +36,6 @@ export async function testAPIDirectly(provider: 'mtp' | 'jap', apiKey: string) {
       isValid: !responseText.includes('error') && !responseText.includes('Error')
     }
   } catch (error) {
-    console.error(`❌ Erro ao testar ${provider}:`, error)
     return {
       success: false,
       provider,
@@ -52,8 +48,6 @@ export async function testAPIDirectly(provider: 'mtp' | 'jap', apiKey: string) {
  * Testar múltiplas chaves de uma vez
  */
 export async function testMultipleAPIKeys(keys: Array<{provider: 'mtp' | 'jap', apiKey: string}>) {
-  console.log('🔍 Testando múltiplas chaves de API...')
-  
   const results = []
   
   for (const { provider, apiKey } of keys) {

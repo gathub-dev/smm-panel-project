@@ -47,7 +47,6 @@ export async function addFunds(prevState: any, formData: FormData) {
     })
 
     if (balanceError) {
-      console.error("Balance update error:", balanceError)
       return { error: "Failed to process deposit" }
     }
 
@@ -68,7 +67,6 @@ export async function addFunds(prevState: any, formData: FormData) {
 
     return { success: true, transactionId: transaction?.id }
   } catch (error) {
-    console.error("Add funds error:", error)
     return { error: "An unexpected error occurred" }
   }
 }
@@ -103,7 +101,6 @@ export async function processRefund(orderId: string, amount: number, reason: str
 
     return { success: true }
   } catch (error) {
-    console.error("Refund error:", error)
     return { error: "An unexpected error occurred" }
   }
 }

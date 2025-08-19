@@ -113,7 +113,6 @@ export class APIManager {
     try {
       return await api.getServices()
     } catch (error) {
-      console.error(`Erro ao obter serviços do ${provider}:`, error)
       return []
     }
   }
@@ -171,8 +170,7 @@ export class APIManager {
 
     try {
       return await api.getOrderStatus(providerOrderId)
-    } catch (error) {
-      console.error(`Erro ao verificar status do pedido ${providerOrderId}:`, error)
+    } catch (error) { 
       return null
     }
   }

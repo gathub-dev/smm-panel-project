@@ -22,105 +22,102 @@ export interface MostSoldService {
 
 export async function getMostSoldServices(limit: number = 10): Promise<MostSoldService[]> {
   try {
-    console.log(`📊 [MOST-SOLD] Buscando ${limit} serviços mais vendidos...`)
-    
     const supabase = createClient()
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('most_sold_services')
       .select('*')
+      .order('total_orders', { ascending: false })
       .limit(limit)
     
     if (error) {
-      console.error('❌ [MOST-SOLD] Erro ao buscar mais vendidos:', error)
       return []
     }
     
     const services = data || []
-    console.log(`✅ [MOST-SOLD] Encontrados ${services.length} serviços mais vendidos`)
     
-    return services.map(service => ({
+    return services.map((service: any) => ({
       ...service,
       quantities: Array.isArray(service.quantities) ? service.quantities : []
     }))
     
   } catch (error: any) {
-    console.error('❌ [MOST-SOLD] Erro geral:', error)
     return []
   }
 }
 
 export async function getMostSoldByCategory(category: string, limit: number = 5): Promise<MostSoldService[]> {
   try {
-    console.log(`📊 [MOST-SOLD] Buscando mais vendidos da categoria: ${category}`)
-    
     const supabase = createClient()
     
-    const { data, error } = await supabase
+    const query = supabase
       .from('most_sold_services')
       .select('*')
       .eq('shop_category', category)
+      .order('total_orders', { ascending: false })
       .limit(limit)
     
+    const { data, error } = await query
+    
     if (error) {
-      console.error('❌ [MOST-SOLD] Erro ao buscar por categoria:', error)
       return []
     }
     
     const services = data || []
-    console.log(`✅ [MOST-SOLD] Encontrados ${services.length} serviços na categoria ${category}`)
     
-    return services.map(service => ({
+    return services.map((service: any) => ({
       ...service,
       quantities: Array.isArray(service.quantities) ? service.quantities : []
     }))
     
   } catch (error: any) {
-    console.error('❌ [MOST-SOLD] Erro geral por categoria:', error)
     return []
   }
 }
 
 export async function getOrdersStats() {
   try {
-    console.log('📈 [STATS] Buscando estatísticas de pedidos...')
-    
     const supabase = createClient()
     
     // Total de pedidos nos últimos 30 dias
-    const { data: totalOrders, error: totalError } = await supabase
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const totalQuery = supabase
       .from('orders')
-      .select('id', { count: 'exact' })
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', thirtyDaysAgo)
+    
+    const { count: totalOrdersCount, error: totalError } = await totalQuery
     
     // Pedidos completados nos últimos 30 dias
-    const { data: completedOrders, error: completedError } = await supabase
+    const completedQuery = supabase
       .from('orders')
-      .select('id', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .eq('status', 'completed')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .gte('created_at', thirtyDaysAgo)
+    
+    const { count: completedOrdersCount, error: completedError } = await completedQuery
     
     // Receita total nos últimos 30 dias
-    const { data: revenueData, error: revenueError } = await supabase
+    const revenueQuery = supabase
       .from('orders')
       .select('total_price')
       .eq('status', 'completed')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .gte('created_at', thirtyDaysAgo)
     
-    const totalRevenue = revenueData?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
+    const { data: revenueData, error: revenueError } = await revenueQuery
+    
+    const totalRevenue = revenueData?.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0) || 0
     
     const stats = {
-      totalOrders: totalOrders?.length || 0,
-      completedOrders: completedOrders?.length || 0,
+      totalOrders: totalOrdersCount || 0,
+      completedOrders: completedOrdersCount || 0,
       totalRevenue: totalRevenue,
-      conversionRate: totalOrders?.length ? (completedOrders?.length || 0) / totalOrders.length * 100 : 0
+      conversionRate: totalOrdersCount ? (completedOrdersCount || 0) / totalOrdersCount * 100 : 0
     }
     
-    console.log('✅ [STATS] Estatísticas calculadas:', stats)
     return stats
     
   } catch (error: any) {
-    console.error('❌ [STATS] Erro ao buscar estatísticas:', error)
     return {
       totalOrders: 0,
       completedOrders: 0,

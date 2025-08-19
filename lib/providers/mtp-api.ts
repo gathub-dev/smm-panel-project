@@ -83,9 +83,6 @@ export class MTPageAPI {
     })
 
     try {
-      console.log('📡 MTP: Enviando requisição...')
-      console.log('📝 Body:', formData.toString())
-      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
@@ -95,25 +92,19 @@ export class MTPageAPI {
         body: formData.toString()
       })
 
-      console.log('📊 MTP: Status da resposta:', response.status, response.statusText)
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const text = await response.text()
-      console.log('📄 MTP: Resposta raw (primeiros 200 chars):', text.substring(0, 200))
       
       try {
         const parsed = JSON.parse(text)
-        console.log('✅ MTP: JSON parseado com sucesso')
         return parsed
       } catch (parseError) {
-        console.log('❌ MTP: Erro ao parsear JSON:', parseError)
         throw new Error(`Invalid JSON response: ${text}`)
       }
     } catch (error) {
-      console.error('💥 MTP API Error:', error)
       throw error
     }
   }
@@ -152,21 +143,10 @@ export class MTPageAPI {
    * Obter lista de serviços
    */
   async getServices(): Promise<MTPageService[]> {
-    console.log('🔍 MTP: Fazendo requisição para obter serviços...')
-    console.log('🌐 URL:', this.apiUrl)
-    console.log('🔑 Chave:', this.apiKey.substring(0, 8) + '...')
-    
     const response = await this.makeRequest({
       action: 'services'
     })
-    
-    console.log('📊 MTP: Resposta recebida:', {
-      tipo: typeof response,
-      isArray: Array.isArray(response),
-      length: Array.isArray(response) ? response.length : 'N/A',
-      primeiros3: Array.isArray(response) ? response.slice(0, 3) : response
-    })
-    
+      
     return response || []
   }
 

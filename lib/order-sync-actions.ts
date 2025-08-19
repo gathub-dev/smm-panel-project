@@ -74,7 +74,6 @@ export async function syncAllOrdersStatus() {
           updated++
         }
       } catch (error) {
-        console.error(`Erro ao sincronizar pedido ${order.id}:`, error)
         
         // Marcar como erro se muitas tentativas falharam
         const hoursSinceCreated = (Date.now() - new Date(order.created_at).getTime()) / (1000 * 60 * 60)

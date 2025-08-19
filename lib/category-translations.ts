@@ -28,8 +28,7 @@ export async function translateCategory(category: string): Promise<string> {
     translationCache.set(category, translated)
     return translated
   } catch (error) {
-    console.warn('Erro na tradução automática, usando fallback:', error)
-    // Fallback para tradução baseada em padrões
+      // Fallback para tradução baseada em padrões
     const fallback = autoTranslateCategory(category)
     translationCache.set(category, fallback)
     return fallback

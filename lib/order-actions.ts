@@ -154,7 +154,6 @@ export async function createOrder(prevState: any, formData: FormData) {
         }
       }
     } catch (apiError) {
-      console.error("Erro ao enviar para API:", apiError)
       // Marcar pedido como erro se API falhar
       await supabase
         .from("orders")
@@ -170,8 +169,7 @@ export async function createOrder(prevState: any, formData: FormData) {
     revalidatePath("/dashboard/balance")
 
     return { success: true, orderId: order.id }
-  } catch (error) {
-    console.error("Order creation error:", error)
+  } catch (error) {   
     return { error: "An unexpected error occurred" }
   }
 }
@@ -226,8 +224,7 @@ export async function cancelOrder(orderId: string) {
     })
 
     if (refundError) {
-      console.error("Refund error:", refundError)
-      // Don't return error here as order is already cancelled
+        // Don't return error here as order is already cancelled
     }
 
     revalidatePath("/dashboard/orders")
@@ -235,7 +232,6 @@ export async function cancelOrder(orderId: string) {
 
     return { success: true }
   } catch (error) {
-    console.error("Order cancellation error:", error)
     return { error: "An unexpected error occurred" }
   }
 }

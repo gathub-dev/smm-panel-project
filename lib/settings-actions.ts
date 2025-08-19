@@ -18,6 +18,15 @@ function createAdminClient() {
   )
 }
 
+interface Setting {
+  id?: string
+  key: string
+  value: string
+  description?: string
+  created_at?: string
+  updated_at?: string
+}
+
 interface SettingResult {
   success: boolean
   message?: string
@@ -64,7 +73,14 @@ export async function getAllSettings(): Promise<SettingResult> {
     if (error) throw error
 
     // Organizar configurações por categoria
-    const categorizedSettings = {
+    const categorizedSettings: {
+      general: Setting[]
+      pricing: Setting[]
+      api: Setting[]
+      notifications: Setting[]
+      security: Setting[]
+      system: Setting[]
+    } = {
       general: [],
       pricing: [],
       api: [],
@@ -111,15 +127,11 @@ export async function getAllSettings(): Promise<SettingResult> {
 // Salvar uma configuração
 export async function saveSetting(key: string, value: string, description?: string): Promise<SettingResult> {
   try {
-    console.log(`🔧 [saveSetting] Iniciando salvamento: ${key} = ${value}`)
-    
-    // TEMPORÁRIO: Desabilitando verificação de admin para teste
-    // const adminCheck = await checkAdminAccess()
-    // if (!adminCheck.success) {
-    //   return adminCheck
-    // }
+        const adminCheck = await checkAdminAccess()
+    if (!adminCheck.success) {
+      return adminCheck
+    }
 
-    console.log(`🔧 [saveSetting] Criando cliente admin...`)
     const supabase = createAdminClient()
     
     const settingData = {
@@ -128,8 +140,6 @@ export async function saveSetting(key: string, value: string, description?: stri
       description: description || null,
       updated_at: new Date().toISOString()
     }
-    
-    console.log(`🔧 [saveSetting] Dados para upsert:`, settingData)
     
     // Primeiro, verificar se a configuração já existe
     const { data: existingData } = await supabase
@@ -141,7 +151,6 @@ export async function saveSetting(key: string, value: string, description?: stri
     let data, error
     
     if (existingData) {
-      console.log(`🔧 [saveSetting] Configuração existe, fazendo UPDATE...`)
       // Se existe, fazer UPDATE
       const result = await supabase
         .from("settings")
@@ -157,7 +166,6 @@ export async function saveSetting(key: string, value: string, description?: stri
       data = result.data
       error = result.error
     } else {
-      console.log(`🔧 [saveSetting] Configuração nova, fazendo INSERT...`)
       // Se não existe, fazer INSERT
       const result = await supabase
         .from("settings")
@@ -170,12 +178,9 @@ export async function saveSetting(key: string, value: string, description?: stri
     }
 
     if (error) {
-      console.log(`❌ [saveSetting] Erro do Supabase:`, error)
       throw error
     }
 
-    console.log(`✅ [saveSetting] Sucesso! Dados salvos:`, data)
-    
     revalidatePath("/dashboard/admin/settings")
     return {
       success: true,
@@ -183,7 +188,6 @@ export async function saveSetting(key: string, value: string, description?: stri
       data
     }
   } catch (error: any) {
-    console.log(`❌ [saveSetting] Erro geral:`, error)
     return { success: false, error: `Erro ao salvar configuração: ${error.message}` }
   }
 }
@@ -228,7 +232,7 @@ export async function deleteSetting(key: string): Promise<SettingResult> {
       return adminCheck
     }
 
-    const supabase = createClient()
+    const supabase = createAdminClient()
     const { error } = await supabase
       .from("settings")
       .delete()

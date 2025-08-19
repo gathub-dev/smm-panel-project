@@ -80,7 +80,7 @@ async function testAuthFlow() {
           console.log('💡 Verifique se há algum problema no código do layout admin.');
         }
       }
-    } else {
+    } else {  
       console.log('✅ Acesso à tabela users funcionando!');
       console.log('   - Dados encontrados:', users.length);
       users.forEach(user => {

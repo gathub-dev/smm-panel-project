@@ -35,18 +35,15 @@ export class TranslationService {
     // Se contém palavras CLARAMENTE em português, está em português
     const hasPortuguese = portugueseWords.some(word => lowerText.includes(word))
     if (hasPortuguese) {
-      console.log(`🇧🇷 [DETECT] Detectado português pela palavra: ${portugueseWords.find(word => lowerText.includes(word))}`)
       return true
     }
     
     // Verificar caracteres especiais do português
     const hasPortugueseChars = /[áàâãéêíóôõúüç]/i.test(text)
     if (hasPortugueseChars) {
-      console.log(`🇧🇷 [DETECT] Detectado português pelos caracteres especiais`)
       return true
     }
     
-    console.log(`🌍 [DETECT] Texto detectado como NÃO português: "${text}"`)
     return false
   }
 
@@ -177,17 +174,11 @@ export class TranslationService {
     /*
     try {
       // Traduzir usando Google Translate
-      console.log(`🌐 [TRANSLATE] Tentando Google Translate: "${text}"`)
       const translated = await translate(text, { to: this.targetLanguage })
-      
-      console.log(`✅ [TRANSLATE] Google Translate sucesso: "${text}" → "${translated}"`)
-      console.log(`🔍 [TRANSLATE] Tipo da resposta:`, typeof translated, `Conteúdo:`, translated)
       
       // Verificar se a tradução é válida
       if (!translated || translated === text || translated.trim() === '') {
-        console.log(`⚠️ [TRANSLATE] Tradução inválida, usando tradução básica`)
         const basicTranslation = this.getBasicTranslation(text)
-        console.log(`🔧 [TRANSLATE] Tradução básica aplicada: "${text}" → "${basicTranslation}"`)
         this.cache.set(cacheKey, basicTranslation)
         return basicTranslation
       }
@@ -197,11 +188,7 @@ export class TranslationService {
       
       return translated
     } catch (error: any) {
-      console.log(`⚠️ [TRANSLATE] Erro na tradução de "${text}":`, error?.message || error)
-      console.log(`🔧 [TRANSLATE] Usando tradução básica como fallback`)
-      
       const basicTranslation = this.getBasicTranslation(text)
-      console.log(`🔧 [TRANSLATE] Tradução básica: "${text}" → "${basicTranslation}"`)
       this.cache.set(cacheKey, basicTranslation)
       return basicTranslation
     }
@@ -372,8 +359,7 @@ export class TranslationService {
         originalDescription: originalDescription !== cleanedDescription ? originalDescription : undefined,
         originalCategory: originalCategory !== cleanedCategory ? originalCategory : undefined
       }
-    } catch (error) {
-      console.log('⚠️ Erro na tradução em lote:', error)
+    } catch (error) {       
       // Mesmo em caso de erro, limpar as informações internas
       return {
         name: this.cleanProviderInfo(serviceData.name),

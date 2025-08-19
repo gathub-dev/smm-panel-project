@@ -25,7 +25,6 @@ async function getSetting(key: string): Promise<string | null> {
   )
 
   try {
-    console.log(`🔍 [getSetting] Buscando configuração: ${key}`)
     
     const { data, error } = await supabase
       .from('settings')
@@ -34,14 +33,11 @@ async function getSetting(key: string): Promise<string | null> {
       .single()
 
     if (error || !data) {
-      console.log(`⚠️ [getSetting] Configuração ${key} não encontrada`)
       return null
     }
     
-    console.log(`✅ [getSetting] ${key} = ${data.value}`)
     return data.value
   } catch (error) {
-    console.error(`❌ [getSetting] Erro ao buscar configuração ${key}:`, error)
     return null
   }
 }
@@ -70,7 +66,6 @@ async function saveSetting(key: string, value: string): Promise<void> {
         updated_at: new Date().toISOString()
       })
   } catch (error) {
-    console.error(`❌ Erro ao salvar configuração ${key}:`, error)
   }
 }
 
@@ -127,10 +122,8 @@ async function fetchFromAPI(provider: string, apiKey?: string, timeout: number =
       throw new Error('Cotação BRL não encontrada ou inválida')
     }
     
-    console.log(`💱 Cotação da API (${provider}): 1 USD = ${brlRate} BRL`)
     return parseFloat(brlRate.toFixed(4))
   } catch (error) {
-    console.error(`❌ Erro ao buscar cotação da API ${provider}:`, error)
     throw error
   }
 }
@@ -140,38 +133,31 @@ async function fetchFromAPI(provider: string, apiKey?: string, timeout: number =
  */
 export async function getCurrentExchangeRate(): Promise<number> {
   try {
-    console.log(`💱 [getCurrentExchangeRate] Iniciando busca da cotação...`)
     
     // Buscar configurações simplificadas
     const currencyMode = await getSetting('currency_mode') || 'manual'
     const fallbackRate = parseFloat(await getSetting('usd_brl_rate') || '5.50')
     
-    console.log(`💱 [getCurrentExchangeRate] Modo: ${currencyMode}, Fallback: ${fallbackRate}`)
     
     if (currencyMode === 'manual') {
       // Usar valor manual
-      console.log(`💱 Usando cotação manual: 1 USD = ${fallbackRate} BRL`)
       return fallbackRate
     }
 
     // Usar API automática
-    console.log(`💱 [getCurrentExchangeRate] Modo automático, buscando da API...`)
     
     try {
       const rate = await fetchFromAPI('exchangerate-api', '', 10)
       
-      console.log(`💱 [getCurrentExchangeRate] Cotação da API: ${rate}`)
       
       // Salvar timestamp da última atualização nas configurações
       await saveSetting('currency_last_update', new Date().toISOString())
       
       return rate
     } catch (apiError) {
-      console.warn(`⚠️ [getCurrentExchangeRate] API falhou, usando fallback: ${fallbackRate}`)
       return fallbackRate
     }
   } catch (error) {
-    console.error('❌ [getCurrentExchangeRate] Erro geral:', error)
     // Fallback final
     return 5.50
   }
@@ -205,10 +191,8 @@ export async function saveExchangeRate(rate: number) {
 
     if (error) throw error
     
-    console.log(`💾 Cotação salva: ${rate}`)
-    return { success: true }
+            return { success: true }
   } catch (error) {
-    console.error('❌ Erro ao salvar cotação:', error)
     return { error: `Erro ao salvar cotação: ${error}` }
   }
 }
@@ -245,14 +229,11 @@ export async function getCachedExchangeRate(): Promise<number | null> {
     const hoursDiff = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60)
 
     if (hoursDiff > 1) {
-      console.log('⏰ Cotação em cache muito antiga, buscando nova...')
-      return null
+          return null
     }
 
-    console.log(`📋 Usando cotação do cache: ${data.rate}`)
     return data.rate
   } catch (error) {
-    console.error('❌ Erro ao buscar cotação do cache:', error)
     return null
   }
 }
@@ -262,11 +243,9 @@ export async function getCachedExchangeRate(): Promise<number | null> {
  */
 export async function getExchangeRate(): Promise<number> {
   try {
-    console.log(`💰 [getExchangeRate] Iniciando busca da taxa de câmbio...`)
     
     const currencyMode = await getSetting('currency_mode') || 'manual'
     
-    console.log(`💰 [getExchangeRate] Modo configurado: ${currencyMode}`)
     
     if (currencyMode === 'manual') {
       // Se é manual, sempre usar o valor das configurações
@@ -274,16 +253,13 @@ export async function getExchangeRate(): Promise<number> {
     }
 
     // Para modo automático, verificar cache primeiro
-    console.log(`💰 [getExchangeRate] Modo automático, verificando cache...`)
     
   const cachedRate = await getCachedExchangeRate()
     if (cachedRate) {
-      console.log(`💰 [getExchangeRate] Usando taxa do cache: ${cachedRate}`)
       return cachedRate
     }
 
     // Se não tem cache, buscar nova cotação
-    console.log(`💰 [getExchangeRate] Cache vazio, buscando nova cotação...`)
   const currentRate = await getCurrentExchangeRate()
   
     // Salvar no cache se for modo automático
@@ -293,7 +269,6 @@ export async function getExchangeRate(): Promise<number> {
   
   return currentRate
   } catch (error) {
-    console.error('❌ [getExchangeRate] Erro ao buscar cotação:', error)
     // Fallback final
     const fallbackRate = parseFloat(await getSetting('usd_brl_rate') || '5.50')
     return fallbackRate
@@ -335,12 +310,10 @@ export async function getExchangeRateInfo(): Promise<{
   provider?: string
 }> {
   try {
-    console.log(`📊 [getExchangeRateInfo] Buscando informações da cotação...`)
     
     const currencyMode = await getSetting('currency_mode') || 'manual'
     const rate = await getExchangeRate()
     
-    console.log(`📊 [getExchangeRateInfo] Modo: ${currencyMode}, Taxa: ${rate}`)
     
     if (currencyMode === 'manual') {
       return {
@@ -357,7 +330,6 @@ export async function getExchangeRateInfo(): Promise<{
     const cachedRate = await getCachedExchangeRate()
     const source = cachedRate ? 'cache' : 'api'
 
-    console.log(`📊 [getExchangeRateInfo] Resultado: source=${source}, lastUpdate=${lastUpdate}`)
 
     return {
       rate,
@@ -365,8 +337,7 @@ export async function getExchangeRateInfo(): Promise<{
       lastUpdate,
       provider
     }
-  } catch (error) {
-    console.error('❌ [getExchangeRateInfo] Erro ao obter informações da cotação:', error)
+  } catch (error) {   
     return {
       rate: 5.50,
       source: 'manual'

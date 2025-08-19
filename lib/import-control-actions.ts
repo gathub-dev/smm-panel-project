@@ -67,13 +67,11 @@ export async function getPlatformsForImport(): Promise<ImportControlResult> {
       .rpc('get_platforms_for_import')
 
     if (error) {
-      console.error('❌ Erro ao buscar plataformas:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, data: platforms || [] }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -106,13 +104,11 @@ export async function getServiceTypesForImport(): Promise<ImportControlResult> {
       .rpc('get_service_types_for_import')
 
     if (error) {
-      console.error('❌ Erro ao buscar tipos de serviços:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, data: serviceTypes || [] }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -145,13 +141,11 @@ export async function getImportCombinations(): Promise<ImportControlResult> {
       .rpc('get_import_combinations')
 
     if (error) {
-      console.error('❌ Erro ao buscar combinações:', error)
       return { success: false, error: error.message }
     }
 
     return { success: true, data: combinations || [] }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -183,8 +177,6 @@ export async function enableImportCombination(
       return { success: false, error: "Acesso negado - apenas administradores" }
     }
 
-    console.log(`🔧 Habilitando importação: ${platformName} - ${serviceTypeName}`)
-
     // Usar a função SQL para habilitar a combinação
     const { data: result, error } = await supabase
       .rpc('enable_import_combination', {
@@ -194,20 +186,16 @@ export async function enableImportCombination(
       })
 
     if (error) {
-      console.error('❌ Erro ao habilitar combinação:', error)
       return { success: false, error: error.message }
     }
 
     if (!result) {
       return { success: false, error: "Plataforma ou tipo de serviço não encontrado" }
     }
-
-    console.log(`✅ Combinação habilitada: ${platformName} - ${serviceTypeName}`)
     
     revalidatePath('/dashboard/admin')
     return { success: true, data: { enabled: true } }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -237,8 +225,6 @@ export async function enableMultipleCombinations(
       return { success: false, error: "Acesso negado - apenas administradores" }
     }
 
-    console.log(`🔧 Habilitando ${combinations.length} combinações...`)
-
     let successCount = 0
     let errorCount = 0
     const errors: string[] = []
@@ -258,7 +244,6 @@ export async function enableMultipleCombinations(
           errors.push(`${combo.platformName} - ${combo.serviceTypeName}: ${error.message}`)
         } else if (result) {
           successCount++
-          console.log(`✅ ${combo.platformName} - ${combo.serviceTypeName}`)
         } else {
           errorCount++
           errors.push(`${combo.platformName} - ${combo.serviceTypeName}: Não encontrado`)
@@ -268,8 +253,6 @@ export async function enableMultipleCombinations(
         errors.push(`${combo.platformName} - ${combo.serviceTypeName}: ${error.message}`)
       }
     }
-
-    console.log(`📊 Resultado: ${successCount} sucessos, ${errorCount} erros`)
 
     revalidatePath('/dashboard/admin')
     
@@ -282,7 +265,6 @@ export async function enableMultipleCombinations(
       } 
     }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -313,8 +295,6 @@ export async function disableImportCombination(
       return { success: false, error: "Acesso negado - apenas administradores" }
     }
 
-    console.log(`🔧 Desabilitando importação: ${platformName} - ${serviceTypeName}`)
-
     // Buscar IDs das tabelas
     const { data: platform } = await supabase
       .from('platforms')
@@ -343,16 +323,12 @@ export async function disableImportCombination(
       .eq('service_type_id', serviceType.id)
 
     if (error) {
-      console.error('❌ Erro ao desabilitar combinação:', error)
       return { success: false, error: error.message }
     }
-
-    console.log(`✅ Combinação desabilitada: ${platformName} - ${serviceTypeName}`)
     
     revalidatePath('/dashboard/admin')
     return { success: true, data: { disabled: true } }
   } catch (error: any) {
-    console.error('❌ Erro geral:', error)
     return { success: false, error: error.message }
   }
 }
@@ -381,36 +357,35 @@ export async function getImportStats(): Promise<ImportControlResult> {
     }
 
     // Buscar estatísticas
-    const { data: platformsCount } = await supabase
+    const { data: platforms } = await supabase
       .from('platforms')
-      .select('id', { count: 'exact' })
+      .select('id')
       .eq('is_active', true)
 
-    const { data: serviceTypesCount } = await supabase
+    const { data: serviceTypes } = await supabase
       .from('service_types')
-      .select('id', { count: 'exact' })
+      .select('id')
       .eq('is_active', true)
 
-    const { data: enabledCombinationsCount } = await supabase
+    const { data: enabledCombinations } = await supabase
       .from('import_control')
-      .select('id', { count: 'exact' })
+      .select('id')
       .eq('import_enabled', true)
 
-    const { data: servicesCount } = await supabase
+    const { data: services } = await supabase
       .from('services')
-      .select('id', { count: 'exact' })
+      .select('id')
       .eq('status', 'active')
 
     const stats = {
-      activePlatforms: platformsCount?.length || 0,
-      activeServiceTypes: serviceTypesCount?.length || 0,
-      enabledCombinations: enabledCombinationsCount?.length || 0,
-      importedServices: servicesCount?.length || 0
+      activePlatforms: platforms?.length || 0,
+      activeServiceTypes: serviceTypes?.length || 0,
+      enabledCombinations: enabledCombinations?.length || 0,
+      importedServices: services?.length || 0
     }
 
     return { success: true, data: stats }
   } catch (error: any) {
-    console.error('❌ Erro ao buscar estatísticas:', error)
     return { success: false, error: error.message }
   }
 }

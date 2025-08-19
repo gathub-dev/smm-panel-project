@@ -12,21 +12,24 @@ export const isSupabaseConfigured =
 // Create a cached version of the Supabase client for Server Components
 export const createClient = cache(() => {
   if (!isSupabaseConfigured) {
-    console.warn("Supabase environment variables are not set. Using dummy client.")
+    const mockResponse = { data: null, error: new Error("Supabase not configured") }
+    const mockChain = {
+      eq: () => mockChain,
+      single: () => Promise.resolve(mockResponse),
+      order: () => Promise.resolve(mockResponse),
+      ...mockResponse
+    }
+    
     return {
       auth: {
         getUser: () => Promise.resolve({ data: { user: null }, error: null }),
         getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       },
-      rpc: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") }),
+      rpc: () => Promise.resolve(mockResponse),
       from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") })
-          }),
-          order: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") })
-        }),
-        order: () => Promise.resolve({ data: null, error: new Error("Supabase not configured") })
+        select: () => mockChain,
+        update: () => mockChain,
+        order: () => Promise.resolve(mockResponse)
       })
     }
   }

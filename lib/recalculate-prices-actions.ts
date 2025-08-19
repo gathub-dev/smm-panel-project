@@ -34,17 +34,14 @@ interface RecalculateResult {
  */
 export async function recalculateAllServicesPrices(): Promise<RecalculateResult> {
   try {
-    console.log(`💰 [recalculateAllServicesPrices] Iniciando recálculo de preços...`)
-    
+
     // Buscar configurações atuais
     const markupResult = await getSetting('markup_percentage')
     const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
     
-    console.log(`📊 [recalculateAllServicesPrices] Markup configurado: ${markup}%`)
     
     // Buscar cotação atual
     const exchangeRate = await getExchangeRate()
-    console.log(`💱 [recalculateAllServicesPrices] Cotação atual: ${exchangeRate}`)
     
     const supabase = createAdminClient()
     
@@ -56,7 +53,6 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
       .not('provider_rate', 'is', null)
     
     if (selectError) {
-      console.log(`❌ [recalculateAllServicesPrices] Erro ao buscar serviços:`, selectError)
       throw selectError
     }
     
@@ -67,8 +63,6 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
       }
     }
     
-    console.log(`🔢 [recalculateAllServicesPrices] Encontrados ${services.length} serviços para recalcular`)
-    
     let updatedCount = 0
     
     // Recalcular preços de cada serviço
@@ -77,15 +71,12 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
         const providerRateUSD = parseFloat(service.provider_rate) || 0
         
         if (providerRateUSD <= 0) {
-          console.log(`⚠️ [recalculateAllServicesPrices] Pulando serviço ${service.id} - provider_rate inválido: ${providerRateUSD}`)
           continue
         }
         
         // Calcular novo preço
         const providerRateBRL = providerRateUSD * exchangeRate
         const finalRateBRL = providerRateBRL * (1 + markup / 100)
-        
-        console.log(`🔄 [recalculateAllServicesPrices] ${service.name}: $${providerRateUSD} → R$ ${finalRateBRL.toFixed(4)}`)
         
         // Atualizar serviço
         const { error: updateError } = await supabase
@@ -101,17 +92,14 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
           .eq('id', service.id)
         
         if (updateError) {
-          console.log(`❌ [recalculateAllServicesPrices] Erro ao atualizar serviço ${service.id}:`, updateError)
         } else {
           updatedCount++
         }
         
       } catch (serviceError) {
-        console.log(`❌ [recalculateAllServicesPrices] Erro no serviço ${service.id}:`, serviceError)
       }
     }
     
-    console.log(`✅ [recalculateAllServicesPrices] Concluído! ${updatedCount} serviços atualizados`)
     
     return {
       success: true,
@@ -124,7 +112,6 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
     }
     
   } catch (error: any) {
-    console.log(`❌ [recalculateAllServicesPrices] Erro geral:`, error)
     return { 
       success: false, 
       error: `Erro ao recalcular preços: ${error.message}` 
@@ -137,8 +124,7 @@ export async function recalculateAllServicesPrices(): Promise<RecalculateResult>
  */
 export async function recalculateSpecificServicesPrices(serviceIds: string[]): Promise<RecalculateResult> {
   try {
-    console.log(`💰 [recalculateSpecificServicesPrices] Recalculando ${serviceIds.length} serviços específicos...`)
-    
+        
     // Buscar configurações atuais
     const markupResult = await getSetting('markup_percentage')
     const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
