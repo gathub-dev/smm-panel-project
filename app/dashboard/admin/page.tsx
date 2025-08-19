@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AdminImportSheet } from "@/components/admin-import-sheet"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Switch } from "@/components/ui/switch"
@@ -61,6 +62,9 @@ import {
 } from "lucide-react"
 import { AdminUserManagement } from "@/components/admin-user-management"
 import { AdminNavigation } from "@/components/admin-navigation"
+import { AdminSettingsPanel } from "@/components/admin-settings-panel"
+import AdminLPPlatforms from "@/components/admin-lp-platforms"
+import { AdminImportPreview } from "@/components/admin-import-preview"
 import { 
   syncAllServices, 
   updateService, 
@@ -90,6 +94,7 @@ import {
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(false)
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -507,8 +512,7 @@ const AdminPage = () => {
 
   return (
     <div className="space-y-6">
-      {/* Navigation */}
-      <AdminNavigation />
+
       
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -581,15 +585,147 @@ const AdminPage = () => {
       {/* Admin Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="apis">APIs</TabsTrigger>
-          <TabsTrigger value="services">Serviços</TabsTrigger>
-          <TabsTrigger value="orders">Pedidos</TabsTrigger>
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="reports">Relatórios</TabsTrigger>
+          <TabsTrigger value="overview">📊 Dashboard</TabsTrigger>
+          <TabsTrigger value="services">🔧 Serviços</TabsTrigger>
+          <TabsTrigger value="users">👥 Usuários</TabsTrigger>
+          <TabsTrigger value="sync">⚡ Sincronização</TabsTrigger>
+          <TabsTrigger value="lp-control">🎯 Controle LP</TabsTrigger>
+          <TabsTrigger value="settings">⚙️ Configurações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="apis" className="space-y-4">
+        <TabsContent value="sync" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Sincronização e APIs</h3>
+              <p className="text-sm text-muted-foreground">
+                Gerencie chaves de API, sincronização de serviços e monitoramento
+              </p>
+            </div>
+          </div>
+
+          {/* Estatísticas de API */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">APIs Conectadas</CardTitle>
+                <Globe className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {apiKeys.filter(key => key.is_active).length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  de {apiKeys.length} configuradas
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Status MTP</CardTitle>
+                <div className={`w-3 h-3 rounded-full ${apiConnections?.mtp ? 'bg-green-500' : 'bg-red-500'}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold">
+                  ${typeof providerBalances?.mtp === 'number' ? providerBalances.mtp.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-xs text-muted-foreground">Saldo disponível</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Status JAP</CardTitle>
+                <div className={`w-3 h-3 rounded-full ${apiConnections?.jap ? 'bg-green-500' : 'bg-red-500'}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold">
+                  ${typeof providerBalances?.jap === 'number' ? providerBalances.jap.toFixed(2) : '0.00'}
+                </div>
+                <p className="text-xs text-muted-foreground">Saldo disponível</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Última Sync</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm font-medium">
+                  {serviceStats?.lastSync 
+                    ? new Date(serviceStats.lastSync).toLocaleDateString('pt-BR')
+                    : 'Nunca'
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {loading ? 'Sincronizando...' : 'Última atualização'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Ações de Sincronização */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Download className="h-5 w-5" />
+                  <span>Importação Controlada</span>
+                </CardTitle>
+                <CardDescription>Configure e visualize antes de importar serviços</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  • Escolha provedor específico (MTP ou JAP)
+                  <br />
+                  • Filtre por categoria
+                  <br />
+                  • Limite quantidade de serviços
+                  <br />
+                  • Preview antes de importar
+                </div>
+                            <AdminImportSheet>
+              <Button className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                Abrir Importação Controlada
+              </Button>
+            </AdminImportSheet>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <RefreshCw className="h-5 w-5" />
+                  <span>Sincronização Completa</span>
+                </CardTitle>
+                <CardDescription>Importa todos os serviços disponíveis</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  • Importa de todos os provedores ativos
+                  <br />
+                  • Atualiza serviços existentes
+                  <br />
+                  • Aplica markup padrão
+                  <br />
+                  • Processo automático completo
+                </div>
+                <Button 
+                  onClick={handleSyncServices} 
+                  disabled={loading}
+                  className="w-full"
+                  variant={loading ? "secondary" : "default"}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? 'Sincronizando...' : 'Sincronizar Tudo'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Gerenciamento de APIs */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -819,6 +955,119 @@ const AdminPage = () => {
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Resumo do Sistema</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Serviços Ativos:</span>
+                    <span className="font-medium text-green-600">{serviceStats?.active || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total de Serviços:</span>
+                    <span className="font-medium">{serviceStats?.total || 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Provedores:</span>
+                    <span className="font-medium">{apiKeys.filter(k => k.is_active).length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Pedidos Pendentes:</span>
+                    <span className="font-medium text-orange-600">{syncStats?.pendingSync || 0}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Activity className="h-5 w-5" />
+                  <span>Status dos Provedores</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${apiConnections?.mtp ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm">MoreThanPanel</span>
+                    </div>
+                    <span className="text-xs font-mono">
+                      ${typeof providerBalances?.mtp === 'number' ? providerBalances.mtp.toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${apiConnections?.jap ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm">JustAnotherPanel</span>
+                    </div>
+                    <span className="text-xs font-mono">
+                      ${typeof providerBalances?.jap === 'number' ? providerBalances.jap.toFixed(2) : '0.00'}
+                    </span>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleTestConnections} 
+                  disabled={loading}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Testar Conexões
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Zap className="h-5 w-5" />
+                  <span>Ações Rápidas</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  onClick={handleSyncServices} 
+                  disabled={loading}
+                  className="w-full"
+                  size="sm"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  {loading ? 'Sincronizando...' : 'Sincronizar Serviços'}
+                </Button>
+                <Button 
+                  onClick={handleSyncOrders} 
+                  disabled={loading}
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  <Activity className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Sync Pedidos
+                </Button>
+                <AdminImportSheet>
+                  <Button 
+                    variant="secondary"
+                    className="w-full"
+                    size="sm"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Importação Controlada
+                  </Button>
+                </AdminImportSheet>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Alertas e Atividade */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -828,26 +1077,12 @@ const AdminPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <UserCheck className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">Novo usuário registrado</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">2 min atrás</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <ShoppingCart className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">Pedido #1234 completado</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">5 min atrás</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">Depósito de R$ 150,00</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">8 min atrás</span>
+                <div className="text-center py-4 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nenhuma atividade recente</p>
+                  <p className="text-xs mt-1">
+                    As atividades do sistema aparecerão aqui
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -856,36 +1091,27 @@ const AdminPage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <AlertTriangle className="h-5 w-5" />
-                  <span>Alertas do Sistema</span>
+                  <span>Status do Sistema</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="destructive">Alto</Badge>
-                    <span className="text-sm">Serviço Instagram indisponível</span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Sistema:</span>
+                    <Badge variant="default" className="bg-green-500">Online</Badge>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Resolver
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary">Médio</Badge>
-                    <span className="text-sm">23 pedidos pendentes</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">APIs:</span>
+                    <Badge variant={apiConnections?.mtp && apiConnections?.jap ? "default" : "destructive"}>
+                      {apiConnections?.mtp && apiConnections?.jap ? 'Conectadas' : 'Verificar'}
+                    </Badge>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Ver
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">Baixo</Badge>
-                    <span className="text-sm">Atualização disponível</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Sincronização:</span>
+                    <Badge variant={loading ? "secondary" : "outline"}>
+                      {loading ? 'Em andamento' : 'Aguardando'}
+                    </Badge>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Atualizar
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -901,17 +1127,25 @@ const AdminPage = () => {
             <div>
               <h3 className="text-lg font-medium">Gerenciamento de Serviços</h3>
               <p className="text-sm text-muted-foreground">
-                Sincronize, configure preços e gerencie todos os serviços SMM
+                Configure preços, status e propriedades dos serviços importados
               </p>
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSyncServices} disabled={loading} variant="outline">
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Sincronizar
+              <Button 
+                onClick={() => setBulkMarkup([], 'percentage', 20)} 
+                variant="outline"
+                size="sm"
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Markup 20%
               </Button>
-              <Button onClick={handleSyncOrders} disabled={loading} variant="outline">
-                <Activity className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Sync Pedidos
+              <Button 
+                onClick={() => setBulkMarkup([], 'percentage', 30)} 
+                variant="outline"
+                size="sm"
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Markup 30%
               </Button>
             </div>
           </div>
@@ -1224,6 +1458,14 @@ const AdminPage = () => {
           </Card>
         </TabsContent>
 
+        <TabsContent value="lp-control" className="space-y-4">
+          <AdminLPPlatforms />
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <AdminSettingsPanel />
+        </TabsContent>
+
         <TabsContent value="orders" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1304,22 +1546,7 @@ const AdminPage = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5" />
-                <span>Relatórios e Análises</span>
-              </CardTitle>
-              <CardDescription>Visualize estatísticas detalhadas e relatórios do sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Relatórios e gráficos analíticos serão implementados aqui
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
       </Tabs>
 
       {/* Sheet de Edição de Serviço */}
@@ -1605,6 +1832,8 @@ const AdminPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
     </div>
   )
 }

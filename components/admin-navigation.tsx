@@ -4,9 +4,15 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { BarChart3, Users, RefreshCw, Settings, Database, TrendingUp } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BarChart3, Users, RefreshCw, Settings, Database, TrendingUp, Eye, Package } from "lucide-react"
 
-export function AdminNavigation() {
+interface AdminNavigationProps {
+  activeTab?: string
+  onTabChange?: (tab: string) => void
+}
+
+export function AdminNavigation({ activeTab, onTabChange }: AdminNavigationProps) {
   const pathname = usePathname()
 
   const navItems = [
@@ -75,29 +81,54 @@ export function AdminNavigation() {
 
       {/* Navigation Tabs */}
       <div className="border-b">
-        <nav className="flex space-x-8">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.href)
-            
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  flex items-center gap-2 pb-4 border-b-2 transition-colors
-                  ${active 
-                    ? 'border-primary text-primary font-medium' 
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                  }
-                `}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
+        {pathname === "/dashboard/admin" && activeTab && onTabChange ? (
+          // Tabs internas para página principal do admin
+          <Tabs value={activeTab} onValueChange={onTabChange}>
+            <TabsList className="h-auto p-0 bg-transparent">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Visão Geral
+              </TabsTrigger>
+              <TabsTrigger value="services" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Serviços
+              </TabsTrigger>
+              <TabsTrigger value="lp-control" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Controle LP
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Configurações
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        ) : (
+          // Navigation normal para outras páginas
+          <nav className="flex space-x-8">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active = isActive(item.href)
+              
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`
+                    flex items-center gap-2 pb-4 border-b-2 transition-colors
+                    ${active 
+                      ? 'border-primary text-primary font-medium' 
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
+                    }
+                  `}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
+        )}
       </div>
     </div>
   )

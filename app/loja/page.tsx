@@ -24,7 +24,9 @@ interface Service {
   name: string
   description: string
   provider: string
+  platform: string
   shop_category: string
+  combined_category: string
   quantities: number[]
   rate: number
   provider_rate: number
@@ -37,12 +39,26 @@ interface ServicesByCategory {
   [key: string]: Service[]
 }
 
+// Ícones por plataforma (nível 1)
+const platformIcons = {
+  Instagram: Heart,
+  TikTok: Users,
+  YouTube: Eye,
+  Facebook: Users,
+  Twitter: MessageCircle,
+  Spotify: BarChart3,
+  outros: Package
+}
+
+// Ícones por tipo de serviço (nível 2)
 const categoryIcons = {
   seguidores: Users,
   curtidas: Heart,
   visualizacoes: Eye,
   comentarios: MessageCircle,
-  estatisticas: BarChart3,
+  compartilhamentos: TrendingUp,
+  stories: Eye,
+  salvamentos: Package,
   outros: Package
 }
 
@@ -51,7 +67,9 @@ const categoryNames = {
   curtidas: "Curtidas", 
   visualizacoes: "Visualizações",
   comentarios: "Comentários",
-  estatisticas: "Estatísticas",
+  compartilhamentos: "Compartilhamentos",
+  stories: "Stories",
+  salvamentos: "Salvamentos",
   outros: "Outros"
 }
 
@@ -68,17 +86,16 @@ export default function LojaPage() {
   const loadServices = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/public/services')
+      const response = await fetch('/api/lp/services')
       const data = await response.json()
       
       if (data.success) {
-        // Filtrar apenas serviços visíveis na LP
-        const lpServices = data.services.filter((service: Service) => service.lp_visible)
-        setServices(lpServices)
+        // Serviços já vêm filtrados apenas das plataformas visíveis na LP
+        setServices(data.services)
         
-        // Organizar por categoria
-        const categorized = lpServices.reduce((acc: ServicesByCategory, service: Service) => {
-          const category = service.shop_category || 'outros'
+        // Organizar por categoria combinada (Platform - Service)
+        const categorized = data.services.reduce((acc: ServicesByCategory, service: Service) => {
+          const category = service.combined_category || service.platform || 'outros'
           if (!acc[category]) {
             acc[category] = []
           }
@@ -177,7 +194,7 @@ export default function LojaPage() {
                   
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      {React.createElement(categoryIcons[service.shop_category as keyof typeof categoryIcons] || Package, { className: "h-5 w-5" })}
+                      {React.createElement(platformIcons[service.platform as keyof typeof platformIcons] || Package, { className: "h-5 w-5" })}
                       {service.name.substring(0, 40)}...
                     </CardTitle>
                     <CardDescription>
@@ -237,15 +254,19 @@ export default function LojaPage() {
         {/* Categorias */}
         <Tabs defaultValue={categories[0]} className="w-full">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-8">
-            {categories.map((category) => {
-              const Icon = categoryIcons[category as keyof typeof categoryIcons] || Package
-              return (
-                <TabsTrigger key={category} value={category} className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {categoryNames[category as keyof typeof categoryNames] || category}
-                </TabsTrigger>
-              )
-            })}
+                      {categories.map((category) => {
+            // Para categorias combinadas, usar ícone da plataforma
+            const platform = category.split(' - ')[0]
+            const serviceType = category.split(' - ')[1]
+            const Icon = platformIcons[platform as keyof typeof platformIcons] || 
+                        categoryIcons[serviceType as keyof typeof categoryIcons] || Package
+            return (
+              <TabsTrigger key={category} value={category} className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                {category}
+              </TabsTrigger>
+            )
+          })}
           </TabsList>
 
           {categories.map((category) => (
@@ -254,10 +275,10 @@ export default function LojaPage() {
                 {servicesByCategory[category].map((service) => (
                   <Card key={service.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {React.createElement(categoryIcons[service.shop_category as keyof typeof categoryIcons] || Package, { className: "h-5 w-5" })}
-                        {service.name.substring(0, 40)}...
-                      </CardTitle>
+                                          <CardTitle className="text-lg flex items-center gap-2">
+                      {React.createElement(platformIcons[service.platform as keyof typeof platformIcons] || Package, { className: "h-5 w-5" })}
+                      {service.name.substring(0, 40)}...
+                    </CardTitle>
                       <CardDescription>
                         {service.description?.substring(0, 80)}...
                       </CardDescription>

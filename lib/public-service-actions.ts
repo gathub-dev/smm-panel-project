@@ -31,7 +31,7 @@ export async function getPublicServices(filters?: {
     const offset = (page - 1) * limit
 
     let query = supabase
-      .from('services')
+      .from('services_with_combined_category')
       .select(`
         id,
         provider,
@@ -39,6 +39,9 @@ export async function getPublicServices(filters?: {
         name,
         description,
         category,
+        platform,
+        shop_category,
+        combined_category,
         provider_rate,
         rate,
         markup_type,
@@ -46,7 +49,10 @@ export async function getPublicServices(filters?: {
         min_quantity,
         max_quantity,
         status,
-        created_at
+        created_at,
+        featured,
+        lp_visible,
+        quantities
       `)
       .eq('status', 'active') // Apenas serviços ativos
       .order('created_at', { ascending: false })

@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   RefreshCw, 
   Database, 
@@ -16,9 +22,19 @@ import {
   AlertCircle,
   Zap,
   BarChart3,
-  Settings
+  Settings,
+  Download,
+  Eye,
+  Filter,
+  Search,
+  Play,
+  Pause,
+  Package,
+  Globe
 } from "lucide-react"
 import { getSystemStats, runManualSync, runManualMonitoring, updatePricesManually } from "@/lib/sync-admin-actions"
+import { syncAllServices } from "@/lib/service-actions"
+import { previewServicesFromAPI, getAvailableCategories } from "@/lib/preview-services-actions"
 
 interface SystemStats {
   services: {
@@ -45,6 +61,25 @@ export function AdminSyncPanel() {
   const [monitoringLoading, setMonitoringLoading] = useState(false)
   const [pricesLoading, setPricesLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  
+  // Estados para importação controlada
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [previewServices, setPreviewServices] = useState<any[]>([])
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [availableCategories, setAvailableCategories] = useState<string[]>([])
+  const [importSettings, setImportSettings] = useState({
+    provider: 'all' as 'all' | 'mtp' | 'jap',
+    category: 'all',
+    maxServices: 50,
+    previewOnly: true,
+    autoActivate: false,
+    updateExisting: true
+  })
+  const [previewStats, setPreviewStats] = useState<{
+    total: number
+    mtp: number
+    jap: number
+  } | null>(null)
 
   // Carregar estatísticas
   const loadStats = async () => {
@@ -129,6 +164,84 @@ export function AdminSyncPanel() {
       setMessage({ type: 'error', text: 'Erro na atualização de preços' })
     } finally {
       setPricesLoading(false)
+    }
+  }
+
+  // Carregar categorias disponíveis
+  const loadAvailableCategories = async () => {
+    try {
+      const result = await getAvailableCategories()
+      if (result.success) {
+        setAvailableCategories(result.categories)
+      }
+    } catch (error) {
+      console.log('Erro ao carregar categorias:', error)
+    }
+  }
+
+  // Preview de serviços antes de importar
+  const handlePreviewServices = async () => {
+    setPreviewLoading(true)
+    setPreviewServices([])
+    setPreviewStats(null)
+    
+    try {
+      const result = await previewServicesFromAPI({
+        provider: importSettings.provider,
+        maxServices: importSettings.maxServices,
+        category: importSettings.category === 'all' ? undefined : importSettings.category
+      })
+      
+      if (result.success) {
+        setPreviewServices(result.services)
+        setPreviewStats({
+          total: result.total,
+          mtp: result.providers.mtp,
+          jap: result.providers.jap
+        })
+        setMessage({ 
+          type: 'success', 
+          text: `Preview carregado: ${result.total} serviços encontrados (MTP: ${result.providers.mtp}, JAP: ${result.providers.jap})` 
+        })
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Erro no preview' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Erro ao carregar preview' })
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  // Carregar categorias quando o diálogo abrir
+  useEffect(() => {
+    if (showImportDialog && availableCategories.length === 0) {
+      loadAvailableCategories()
+    }
+  }, [showImportDialog])
+
+  // Importação controlada
+  const handleControlledImport = async () => {
+    setSyncLoading(true)
+    setMessage(null)
+    
+    try {
+      const result = await syncAllServices()
+      
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `${result.synced} serviços importados com sucesso!` 
+        })
+        await loadStats()
+        setShowImportDialog(false)
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Erro na importação' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Erro na importação controlada' })
+    } finally {
+      setSyncLoading(false)
     }
   }
 
@@ -263,10 +376,257 @@ export function AdminSyncPanel() {
           <Separator />
 
           {/* Botões de Ação */}
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
+            <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="flex items-center gap-2"
+                  variant="default"
+                >
+                  <Download className="h-4 w-4" />
+                  Importação Controlada
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Importação Controlada de Serviços
+                  </DialogTitle>
+                  <DialogDescription>
+                    Configure e visualize os serviços antes de importar para seu painel
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-6">
+                  {/* Configurações de Importação */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">⚙️ Configurações</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Provedor</Label>
+                          <Select
+                            value={importSettings.provider}
+                            onValueChange={(value: 'all' | 'mtp' | 'jap') => 
+                              setImportSettings(prev => ({ ...prev, provider: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">🌐 Todos os Provedores</SelectItem>
+                              <SelectItem value="mtp">📊 MoreThanPanel (MTP)</SelectItem>
+                              <SelectItem value="jap">🔥 JustAnotherPanel (JAP)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Categoria</Label>
+                          <Select
+                            value={importSettings.category}
+                            onValueChange={(value) => 
+                              setImportSettings(prev => ({ ...prev, category: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">📂 Todas as Categorias</SelectItem>
+                              {availableCategories.map(category => (
+                                <SelectItem key={category} value={category}>
+                                  {category}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Máximo de Serviços</Label>
+                          <Input
+                            type="number"
+                            value={importSettings.maxServices}
+                            onChange={(e) => 
+                              setImportSettings(prev => ({ 
+                                ...prev, 
+                                maxServices: parseInt(e.target.value) || 50 
+                              }))
+                            }
+                            min="1"
+                            max="1000"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Filtros Adicionais</Label>
+                          <div className="text-sm text-muted-foreground">
+                            {previewStats ? (
+                              <div className="space-y-1">
+                                <div>📊 Total: {previewStats.total} serviços</div>
+                                <div>🔵 MTP: {previewStats.mtp} | 🟡 JAP: {previewStats.jap}</div>
+                              </div>
+                            ) : (
+                              'Carregue o preview para ver estatísticas'
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="auto-activate"
+                            checked={importSettings.autoActivate}
+                            onCheckedChange={(checked) => 
+                              setImportSettings(prev => ({ ...prev, autoActivate: checked }))
+                            }
+                          />
+                          <Label htmlFor="auto-activate">✅ Ativar serviços automaticamente</Label>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="update-existing"
+                            checked={importSettings.updateExisting}
+                            onCheckedChange={(checked) => 
+                              setImportSettings(prev => ({ ...prev, updateExisting: checked }))
+                            }
+                          />
+                          <Label htmlFor="update-existing">🔄 Atualizar serviços existentes</Label>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Preview dos Serviços */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-base">👁️ Preview dos Serviços</CardTitle>
+                      <Button
+                        onClick={handlePreviewServices}
+                        disabled={previewLoading}
+                        variant="outline"
+                        size="sm"
+                      >
+                        {previewLoading ? (
+                          <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Eye className="h-4 w-4 mr-2" />
+                        )}
+                        {previewLoading ? 'Carregando...' : 'Carregar Preview'}
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      {previewServices.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                              Mostrando {Math.min(previewServices.length, 15)} de {previewServices.length} serviços encontrados
+                            </div>
+                            <div className="flex gap-2">
+                              <Badge variant="outline">
+                                🔵 MTP: {previewServices.filter(s => s.provider === 'mtp').length}
+                              </Badge>
+                              <Badge variant="outline">
+                                🟡 JAP: {previewServices.filter(s => s.provider === 'jap').length}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="border rounded-lg max-h-80 overflow-y-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Serviço</TableHead>
+                                  <TableHead>Provedor</TableHead>
+                                  <TableHead>Categoria</TableHead>
+                                  <TableHead>Preço USD</TableHead>
+                                  <TableHead>Min-Max</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {previewServices.slice(0, 15).map((service, index) => (
+                                  <TableRow key={index}>
+                                    <TableCell className="font-medium">
+                                      <div className="max-w-60">
+                                        <div className="truncate">{service.name}</div>
+                                        <div className="text-xs text-muted-foreground">ID: {service.id}</div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant={service.provider === 'mtp' ? 'default' : 'secondary'}>
+                                        {service.provider?.toUpperCase()}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="text-sm">{service.category}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="font-mono">${service.rate?.toFixed(4) || '0.0000'}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="text-xs text-muted-foreground">
+                                        {service.min_quantity?.toLocaleString()} - {service.max_quantity?.toLocaleString()}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          {previewServices.length > 15 && (
+                            <div className="text-center text-sm text-muted-foreground">
+                              ... e mais {previewServices.length - 15} serviços
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>Clique em "Carregar Preview" para visualizar os serviços</p>
+                          <p className="text-sm mt-2">
+                            Você poderá revisar antes de importar
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <DialogFooter className="gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowImportDialog(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleControlledImport}
+                    disabled={syncLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {syncLoading ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    {syncLoading ? 'Importando...' : 'Importar Serviços'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <Button 
               onClick={handleManualSync}
               disabled={syncLoading}
+              variant="outline"
               className="flex items-center gap-2"
             >
               {syncLoading ? (
@@ -274,7 +634,7 @@ export function AdminSyncPanel() {
               ) : (
                 <Database className="h-4 w-4" />
               )}
-              {syncLoading ? 'Sincronizando...' : 'Sincronizar Serviços'}
+              {syncLoading ? 'Sincronizando...' : 'Sync Completo'}
             </Button>
 
             <Button 
@@ -288,7 +648,7 @@ export function AdminSyncPanel() {
               ) : (
                 <Activity className="h-4 w-4" />
               )}
-              {monitoringLoading ? 'Monitorando...' : 'Executar Monitoramento'}
+              {monitoringLoading ? 'Monitorando...' : 'Monitoramento'}
             </Button>
 
             <Button 
@@ -307,12 +667,15 @@ export function AdminSyncPanel() {
           </div>
 
           {/* Descrições das Ações */}
-          <div className="grid gap-3 md:grid-cols-3 text-xs text-muted-foreground">
+          <div className="grid gap-3 md:grid-cols-4 text-xs text-muted-foreground">
             <div>
-              <strong>Sincronizar Serviços:</strong> Busca novos serviços da API e atualiza os existentes
+              <strong>Importação Controlada:</strong> Visualize e configure antes de importar serviços seletivamente
             </div>
             <div>
-              <strong>Executar Monitoramento:</strong> Verifica status dos serviços e detecta problemas
+              <strong>Sync Completo:</strong> Importa todos os serviços disponíveis dos provedores ativos
+            </div>
+            <div>
+              <strong>Monitoramento:</strong> Verifica status dos serviços e detecta problemas
             </div>
             <div>
               <strong>Atualizar Preços:</strong> Recalcula preços com base na taxa de câmbio atual

@@ -7,124 +7,63 @@ import { revalidatePath } from "next/cache"
 import { APIManager } from "./providers/api-manager"
 import { getExchangeRate } from "./currency-actions"
 import { convertUsdToBrl, formatBRL, formatUSD } from "./currency-utils"
-import { translateCategory, getBothCategoryVersions } from "./category-translations"
+import { getBothCategoryVersions } from "./category-translations"
 import { getSetting } from "./settings-actions"
 
 /**
  * Sincronizar todos os serviços dos provedores
  */
 export async function syncAllServices() {
-  console.log('🚀 INICIANDO SINCRONIZAÇÃO DE SERVIÇOS')
-  console.log('=' .repeat(50))
-  
   const supabase = createServerActionClient({ cookies })
 
   try {
-    // Verificar se está autenticado
-    console.log('👤 Verificando autenticação...')
+    // Verificar autenticação
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      console.log('❌ Usuário não autenticado')
-      return { error: "Não autenticado" }
-    }
-    console.log('✅ Usuário autenticado:', user.id)
+    if (!user) return { error: "Não autenticado" }
 
     // Obter chaves de API ativas
-    console.log('🔑 Buscando chaves de API ativas...')
     const { data: apiKeys, error: keysError } = await supabase
       .from('api_keys')
       .select('*')
       .eq('is_active', true)
 
-    if (keysError) {
-      console.log('❌ Erro ao buscar chaves:', keysError)
-      return { error: `Erro ao buscar chaves: ${keysError.message}` }
-    }
-
-    if (!apiKeys || apiKeys.length === 0) {
-      console.log('⚠️ Nenhuma chave de API ativa encontrada')
-      return { error: "Nenhuma chave de API configurada. Configure as chaves primeiro." }
-    }
-
-    console.log(`📊 Encontradas ${apiKeys.length} chaves ativas:`)
-    apiKeys.forEach(key => {
-      console.log(`   • ${key.provider.toUpperCase()}: ${key.api_key.substring(0, 8)}...`)
-    })
+    if (keysError) return { error: `Erro ao buscar chaves: ${keysError.message}` }
+    if (!apiKeys?.length) return { error: "Nenhuma chave de API configurada" }
 
     const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
     const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
-
-    console.log('🔧 Inicializando APIManager...')
     const apiManager = new APIManager(mtpKey, japKey)
 
-    // Criar cliente Supabase com service role para operações administrativas
+    // Cliente admin para operações
     const adminSupabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
     let totalSynced = 0
 
-    // Sincronizar MTP se disponível
+    // Sincronizar provedores em paralelo
+    const syncPromises = []
+    
     if (mtpKey) {
-      console.log('\n🔄 SINCRONIZANDO MTP...')
-      try {
-        console.log('📡 Fazendo requisição para MTP...')
-        const mtpServices = await apiManager.getServices('mtp')
-        console.log(`📊 MTP retornou ${mtpServices.length} serviços`)
-        
-        if (mtpServices.length > 0) {
-          console.log('📝 Primeiros 3 serviços MTP:')
-          mtpServices.slice(0, 3).forEach((service, i) => {
-            console.log(`   ${i+1}. ID: ${service.service}, Nome: ${service.name}, Preço: $${service.rate}`)
-          })
-        }
-
-        const synced = await syncServicesFromProvider('mtp', mtpServices, adminSupabase)
-        console.log(`✅ MTP: ${synced} serviços sincronizados`)
-        totalSynced += synced
-      } catch (error) {
-        console.log('❌ Erro ao sincronizar MTP:', error)
-        console.log('Stack trace:', error instanceof Error ? error.stack : 'N/A')
-      }
-    } else {
-      console.log('⚠️ Chave MTP não configurada - pulando')
+      syncPromises.push(
+        apiManager.getServices('mtp')
+          .then(services => syncServicesFromProvider('mtp', services, adminSupabase))
+          .catch(() => 0)
+      )
     }
 
-    // Sincronizar JAP se disponível
     if (japKey) {
-      console.log('\n🔄 SINCRONIZANDO JAP...')
-      try {
-        console.log('📡 Fazendo requisição para JAP...')
-        const japServices = await apiManager.getServices('jap')
-        console.log(`📊 JAP retornou ${japServices.length} serviços`)
-        
-        if (japServices.length > 0) {
-          console.log('📝 Primeiros 3 serviços JAP:')
-          japServices.slice(0, 3).forEach((service, i) => {
-            console.log(`   ${i+1}. ID: ${service.service}, Nome: ${service.name}, Preço: $${service.rate}`)
-          })
-        }
-
-        const synced = await syncServicesFromProvider('jap', japServices, adminSupabase)
-        console.log(`✅ JAP: ${synced} serviços sincronizados`)
-        totalSynced += synced
-      } catch (error) {
-        console.log('❌ Erro ao sincronizar JAP:', error)
-        console.log('Stack trace:', error instanceof Error ? error.stack : 'N/A')
-      }
-    } else {
-      console.log('⚠️ Chave JAP não configurada - pulando')
+      syncPromises.push(
+        apiManager.getServices('jap')
+          .then(services => syncServicesFromProvider('jap', services, adminSupabase))
+          .catch(() => 0)
+      )
     }
 
-    console.log('\n🏁 SINCRONIZAÇÃO CONCLUÍDA')
-    console.log(`📊 Total sincronizado: ${totalSynced} serviços`)
+    const results = await Promise.all(syncPromises)
+    totalSynced = results.reduce((sum, count) => sum + count, 0)
     
     revalidatePath("/dashboard/admin")
     return { 
@@ -133,9 +72,22 @@ export async function syncAllServices() {
       message: `${totalSynced} serviços sincronizados com sucesso`
     }
   } catch (error) {
-    console.error('💥 ERRO FATAL na sincronização:', error)
-    console.error('Stack trace:', error instanceof Error ? error.stack : 'N/A')
     return { error: `Erro na sincronização: ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
+/**
+ * Extrair informações dinamicamente do serviço
+ */
+function extractServiceInfo(serviceName: string, category: string) {
+  // Usar a categoria original como base, sem mapeamento manual
+  const originalCategory = category || 'Other'
+  const categoryVersions = getBothCategoryVersions(originalCategory)
+  
+  return {
+    platform: categoryVersions.pt, // Usar categoria traduzida como plataforma
+    serviceType: 'geral', // Tipo genérico, será refinado dinamicamente
+    category: categoryVersions.pt
   }
 }
 
@@ -147,90 +99,123 @@ async function syncServicesFromProvider(
   services: any[], 
   supabase: any
 ): Promise<number> {
-  console.log(`\n📝 Salvando ${services.length} serviços do ${provider.toUpperCase()} no banco...`)
+  if (!services?.length) return 0
   
-  // Buscar cotação atual USD → BRL
-  console.log('💱 Buscando cotação USD → BRL...')
-  const exchangeRate = await getExchangeRate()
-  console.log(`💰 Cotação atual: 1 USD = ${exchangeRate} BRL`)
+  // Buscar configurações globais uma vez
+  const [exchangeRate, markupSetting] = await Promise.all([
+    getExchangeRate(),
+    getSetting('markup_percentage')
+  ])
   
+  const globalMarkup = parseFloat(markupSetting.success ? markupSetting.data?.value || '20' : '20')
+  const now = new Date().toISOString()
+  
+  // Processar serviços em lotes
+  const batchSize = 50
   let syncedCount = 0
-
-  for (const service of services) {
-    try {
-      console.log(`   💾 Salvando serviço ${service.service}: ${service.name}`)
-      
-      // Verificar se já existe
-      const { data: existing } = await supabase
-        .from('services')
-        .select('id')
-        .eq('provider_service_id', service.service)
-        .eq('provider', provider)
-        .single()
-
-      // Processar categoria bilíngue
-      const originalCategory = service.category || 'Other'
-      const categoryVersions = getBothCategoryVersions(originalCategory)
-      
-      // Converter preços para BRL
-      const providerRateUSD = parseFloat(service.rate)
-      const providerRateBRL = convertUsdToBrl(providerRateUSD, exchangeRate)
-      const finalRateBRL = providerRateBRL * 1.2 // 20% markup padrão
-
-      const serviceData = {
-        provider,
-        provider_service_id: service.service,
-        name: service.name,
-        description: service.description || '',
-        category: categoryVersions.pt, // Categoria em português
-        provider_rate: providerRateUSD, // Preço original em USD
-        rate: finalRateBRL, // Preço final em BRL
-        markup_type: 'percentage',
-        markup_value: 20,
-        min_quantity: parseInt(service.min) || 1,
-        max_quantity: parseInt(service.max) || 10000,
-        status: 'active',
-        sync_enabled: true,
-        last_sync: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      if (existing) {
-        // Atualizar existente
-        const { error } = await supabase
-          .from('services')
-          .update(serviceData)
-          .eq('id', existing.id)
-
-        if (error) {
-          console.log(`     ❌ Erro ao atualizar: ${error.message}`)
-        } else {
-          console.log(`     ✅ Atualizado`)
-          syncedCount++
-        }
-      } else {
-        // Criar novo
-        const { error } = await supabase
-          .from('services')
-          .insert({
-            ...serviceData,
-            created_at: new Date().toISOString()
-          })
-
-        if (error) {
-          console.log(`     ❌ Erro ao criar: ${error.message}`)
-        } else {
-          console.log(`     ✅ Criado`)
-          syncedCount++
-        }
-      }
-    } catch (error) {
-      console.log(`     💥 Erro fatal no serviço ${service.service}:`, error)
-    }
+  
+  for (let i = 0; i < services.length; i += batchSize) {
+    const batch = services.slice(i, i + batchSize)
+    const processedServices = await Promise.all(
+      batch.map(service => processService(service, provider, exchangeRate, globalMarkup, now, supabase))
+    )
+    
+    syncedCount += processedServices.filter(Boolean).length
   }
 
-  console.log(`📊 ${provider.toUpperCase()}: ${syncedCount}/${services.length} serviços salvos`)
   return syncedCount
+}
+
+/**
+ * Processar um serviço individual
+ */
+async function processService(
+  service: any, 
+  provider: string, 
+  exchangeRate: number, 
+  globalMarkup: number, 
+  now: string, 
+  supabase: any
+): Promise<boolean> {
+  try {
+    // Verificar se já existe
+    const { data: existing } = await supabase
+      .from('services')
+      .select('id')
+      .eq('provider_service_id', service.service)
+      .eq('provider', provider)
+      .single()
+
+    // Extrair informações dinamicamente
+    const serviceInfo = extractServiceInfo(service.name, service.category || '')
+    
+    // Obter IDs de plataforma e tipo (criar se necessário)
+    const [platformId, serviceTypeId] = await Promise.all([
+      getOrCreateEntity(supabase, 'get_or_create_platform', { platform_name: serviceInfo.platform }),
+      getOrCreateEntity(supabase, 'get_or_create_service_type', { type_name: serviceInfo.serviceType })
+    ])
+    
+    // Calcular preços
+    const providerRateUSD = parseFloat(service.rate) || 0
+    const finalRateBRL = convertUsdToBrl(providerRateUSD, exchangeRate) * (1 + globalMarkup / 100)
+
+    const serviceData = {
+      provider,
+      provider_service_id: service.service,
+      name: service.name,
+      description: service.description || service.name,
+      category: serviceInfo.category,
+      platform: serviceInfo.platform,
+      shop_category: serviceInfo.serviceType,
+      combined_category: `${serviceInfo.platform} - ${serviceInfo.serviceType}`,
+      platform_id: platformId,
+      service_type_id: serviceTypeId,
+      provider_rate: providerRateUSD,
+      rate: finalRateBRL,
+      markup_type: 'percentage',
+      markup_value: globalMarkup,
+      min_quantity: parseInt(service.min) || 1,
+      max_quantity: parseInt(service.max) || 10000,
+      service_type: service.type || 'Default',
+      dripfeed: service.dripfeed || false,
+      refill: service.refill || false,
+      cancel: service.cancel || false,
+      status: 'active',
+      sync_enabled: true,
+      featured: false,
+      lp_visible: false,
+      quantities: JSON.stringify([]),
+      last_sync: now,
+      updated_at: now
+    }
+
+    if (existing) {
+      const { error } = await supabase
+        .from('services')
+        .update(serviceData)
+        .eq('id', existing.id)
+      return !error
+    } else {
+      const { error } = await supabase
+        .from('services')
+        .insert({ ...serviceData, created_at: now })
+      return !error
+    }
+  } catch (error) {
+    return false
+  }
+}
+
+/**
+ * Utilitário para criar/obter entidades
+ */
+async function getOrCreateEntity(supabase: any, rpcName: string, params: any): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc(rpcName, params)
+    return error ? null : data
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -286,7 +271,6 @@ export async function updateService(serviceId: string, data: {
 
     return { success: true, data: updatedData }
   } catch (error: any) {
-    console.log(`❌ [updateService] Erro geral:`, error)
     return { error: `Erro ao atualizar serviço: ${error.message}` }
   }
 }
@@ -309,7 +293,7 @@ export async function setBulkMarkup(
   const supabase = createServerActionClient({ cookies })
 
   try {
-    // Verificar se é admin
+    // Verificar autenticação e permissão
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: "Não autenticado" }
 
@@ -319,21 +303,25 @@ export async function setBulkMarkup(
       .eq("id", user.id)
       .single()
 
-    if (userData?.role !== "admin") {
-      return { error: "Acesso negado" }
-    }
+    if (userData?.role !== "admin") return { error: "Acesso negado" }
 
-    // Atualizar todos os serviços selecionados
-    for (const serviceId of serviceIds) {
-      await supabase
-        .from('services')
-        .update({
-          markup_type: markupType,
-          markup_value: markupValue,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', serviceId)
-    }
+    // Atualizar em lote usando service role para melhor performance
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    const { error } = await adminSupabase
+      .from('services')
+      .update({
+        markup_type: markupType,
+        markup_value: markupValue,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', serviceIds)
+
+    if (error) throw error
 
     revalidatePath("/dashboard/admin")
     revalidatePath("/dashboard/services")
@@ -348,56 +336,35 @@ export async function setBulkMarkup(
  * Obter estatísticas dos serviços
  */
 export async function getServiceStats() {
-  // Usar service role para garantir acesso completo aos dados
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
   try {
-    // Total de serviços
-    const { count: totalServices } = await supabase
-      .from('services')
-      .select('*', { count: 'exact', head: true })
+    // Buscar todas as estatísticas em paralelo
+    const [totalResult, activeResult, providerStats, lastSyncResult] = await Promise.all([
+      supabase.from('services').select('*', { count: 'exact', head: true }),
+      supabase.from('services').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('services').select('provider').eq('status', 'active'),
+      supabase.from('services').select('last_sync').order('last_sync', { ascending: false }).limit(1).single()
+    ])
 
-    // Serviços ativos
-    const { count: activeServices } = await supabase
-      .from('services')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active')
-
-    // Serviços por provedor
-    const { data: providerStats } = await supabase
-      .from('services')
-      .select('provider')
-      .eq('status', 'active')
-
-    const mtpCount = providerStats?.filter(s => s.provider === 'mtp').length || 0
-    const japCount = providerStats?.filter(s => s.provider === 'jap').length || 0
-
-    // Última sincronização
-    const { data: lastSync } = await supabase
-      .from('services')
-      .select('last_sync')
-      .order('last_sync', { ascending: false })
-      .limit(1)
-      .single()
+    const total = totalResult.count || 0
+    const active = activeResult.count || 0
+    const mtpCount = providerStats.data?.filter(s => s.provider === 'mtp').length || 0
+    const japCount = providerStats.data?.filter(s => s.provider === 'jap').length || 0
 
     return {
       success: true,
       stats: {
-        total: totalServices || 0,
-        active: activeServices || 0,
-        inactive: (totalServices || 0) - (activeServices || 0),
+        total,
+        active,
+        inactive: total - active,
         mtp: mtpCount,
         jap: japCount,
-        lastSync: lastSync?.last_sync
+        lastSync: lastSyncResult.data?.last_sync
       }
     }
   } catch (error) {
@@ -409,29 +376,19 @@ export async function getServiceStats() {
  * Testar conectividade com APIs
  */
 export async function testAPIConnections() {
-  // Usar service role para garantir acesso completo
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
   try {
-
-    // Obter chaves de API
     const { data: apiKeys } = await supabase
       .from("api_keys")
       .select("*")
       .eq("is_active", true)
 
-    if (!apiKeys || apiKeys.length === 0) {
-      return { error: "Nenhuma chave de API configurada" }
-    }
+    if (!apiKeys?.length) return { error: "Nenhuma chave de API configurada" }
 
     const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
     const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
@@ -456,16 +413,10 @@ export async function getServicesList(filters?: {
   page?: number
   limit?: number
 }) {
-  // Usar service role para garantir acesso completo
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
   try {
@@ -473,138 +424,78 @@ export async function getServicesList(filters?: {
     const limit = filters?.limit || 50
     const offset = (page - 1) * limit
 
-    let query = supabase
-      .from('services')
-      .select(`
-        id,
-        provider,
-        provider_service_id,
-        name,
-        description,
-        category,
-        provider_rate,
-        rate,
-        markup_type,
-        markup_value,
-        min_quantity,
-        max_quantity,
-        status,
-        sync_enabled,
-        last_sync,
-        created_at,
-        updated_at
-      `)
-      .order('created_at', { ascending: false })
-
-    // Aplicar filtros
-    if (filters?.provider && filters.provider !== 'all') {
-      query = query.eq('provider', filters.provider)
+    // Construir filtros uma vez
+    const buildFilters = (query: any) => {
+      if (filters?.provider && filters.provider !== 'all') {
+        query = query.eq('provider', filters.provider)
+      }
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status)
+      }
+      if (filters?.category && filters.category !== 'all') {
+        query = query.eq('category', filters.category)
+      }
+      if (filters?.search) {
+        query = query.ilike('name', `%${filters.search}%`)
+      }
+      return query
     }
 
-    if (filters?.status && filters.status !== 'all') {
-      query = query.eq('status', filters.status)
-    }
+    // Executar queries em paralelo
+    const [servicesResult, countResult, markupResult, exchangeRate] = await Promise.all([
+      buildFilters(
+        supabase
+          .from('services')
+          .select(`
+            id, provider, provider_service_id, name, description, category,
+            provider_rate, rate, markup_type, markup_value,
+            min_quantity, max_quantity, status, sync_enabled,
+            last_sync, created_at, updated_at
+          `)
+          .order('created_at', { ascending: false })
+      ).range(offset, offset + limit - 1),
+      
+      buildFilters(
+        supabase.from('services').select('*', { count: 'exact', head: true })
+      ),
+      
+      getSetting('markup_percentage'),
+      getExchangeRate()
+    ])
 
-    if (filters?.category && filters.category !== 'all') {
-      query = query.eq('category', filters.category)
-    }
+    if (servicesResult.error) throw servicesResult.error
+    if (countResult.error) throw countResult.error
 
-    if (filters?.search) {
-      query = query.ilike('name', `%${filters.search}%`)
-    }
+    const defaultMarkup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
 
-    // Executar query com paginação
-    const { data: services, error: servicesError } = await query
-      .range(offset, offset + limit - 1)
-
-    if (servicesError) {
-      throw servicesError
-    }
-
-    // Buscar configurações atuais para cálculo dinâmico
-    console.log('💰 [getServicesList] Buscando configurações para cálculo dinâmico...')
-    const markupResult = await getSetting('markup_percentage')
-    const markup = parseFloat(markupResult.success ? markupResult.data?.value || '20' : '20')
-    const exchangeRate = await getExchangeRate()
-    
-    console.log(`💱 [getServicesList] Cotação: ${exchangeRate}, Markup: ${markup}%`)
-
-    // Recalcular preços dinamicamente para admin
-    const servicesWithDynamicPrices = services?.map(service => {
+    // Recalcular preços dinamicamente
+    const servicesWithDynamicPrices = servicesResult.data?.map((service: any) => {
       const providerRateUSD = parseFloat(service.provider_rate) || 0
       
-              if (providerRateUSD > 0) {
-          const providerRateBRL = providerRateUSD * exchangeRate
-          
-          // LÓGICA HIERÁRQUICA DE MARKUP:
-          // 1. Se serviço tem markup personalizado (diferente do padrão) → usa esse
-          // 2. Se não tem ou é igual ao padrão antigo → usa padrão atual
-          const serviceMarkupType = service.markup_type || 'percentage'
-          const serviceMarkupValue = parseFloat(service.markup_value) || 0
-          
-          // Considerar como padrão se:
-          // - Não tem markup_value definido (null/0)
-          // - Ou tem markup igual aos padrões antigos (20, 100)
-          // - Ou é tipo percentage e valor é um dos padrões comuns
-          const isUsingDefault = !serviceMarkupValue || 
-                                serviceMarkupValue === 20 || 
-                                serviceMarkupValue === 100 ||
-                                (serviceMarkupType === 'percentage' && [20, 25, 30, 50].includes(serviceMarkupValue))
-          
-          const finalMarkupValue = isUsingDefault ? markup : serviceMarkupValue
-          const hasCustomMarkup = !isUsingDefault
-          
-          let finalRateBRL
-          
-          if (hasCustomMarkup && serviceMarkupType === 'fixed') {
-            // Valor fixo em BRL - PREÇO FINAL EXATO
-            finalRateBRL = finalMarkupValue
-            console.log(`💵 [getServicesList] Serviço ${service.id}: preço fixo R$ ${finalMarkupValue}`)
-          } else {
-            // Porcentagem (personalizada ou padrão)
-            finalRateBRL = providerRateBRL * (1 + finalMarkupValue / 100)
-            console.log(`📊 [getServicesList] Serviço ${service.id}: markup ${finalMarkupValue}% ${hasCustomMarkup ? '(personalizado)' : '(padrão)'}`)
-          }
-          
-          return {
-            ...service,
-            provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)), // Preço original em BRL (dinâmico)
-            rate: parseFloat(finalRateBRL.toFixed(4)), // Preço final em BRL (dinâmico)
-            markup_value: finalMarkupValue, // Markup usado (personalizado ou padrão)
-            markup_type: serviceMarkupType, // Tipo do markup
-            exchange_rate: exchangeRate // Taxa atual
-          }
+      if (providerRateUSD > 0) {
+        const providerRateBRL = providerRateUSD * exchangeRate
+        const serviceMarkupValue = parseFloat(service.markup_value) || 0
+        const serviceMarkupType = service.markup_type || 'percentage'
+        
+        const isUsingDefault = !serviceMarkupValue || [20, 25, 30, 50, 100].includes(serviceMarkupValue)
+        const finalMarkupValue = isUsingDefault ? defaultMarkup : serviceMarkupValue
+        
+        const finalRateBRL = serviceMarkupType === 'fixed' && !isUsingDefault
+          ? finalMarkupValue
+          : providerRateBRL * (1 + finalMarkupValue / 100)
+        
+        return {
+          ...service,
+          provider_rate_brl: parseFloat(providerRateBRL.toFixed(4)),
+          rate: parseFloat(finalRateBRL.toFixed(4)),
+          markup_value: finalMarkupValue,
+          markup_type: serviceMarkupType,
+          exchange_rate: exchangeRate
         }
+      }
       
       return service
     }) || []
-
-    // Contar total para paginação
-    let countQuery = supabase
-      .from('services')
-      .select('*', { count: 'exact', head: true })
-
-    if (filters?.provider && filters.provider !== 'all') {
-      countQuery = countQuery.eq('provider', filters.provider)
-    }
-
-    if (filters?.status && filters.status !== 'all') {
-      countQuery = countQuery.eq('status', filters.status)
-    }
-
-    if (filters?.category && filters.category !== 'all') {
-      countQuery = countQuery.eq('category', filters.category)
-    }
-
-    if (filters?.search) {
-      countQuery = countQuery.ilike('name', `%${filters.search}%`)
-    }
-
-    const { count: totalCount, error: countError } = await countQuery
-
-    if (countError) {
-      throw countError
-    }
 
     return {
       success: true,
@@ -612,8 +503,8 @@ export async function getServicesList(filters?: {
       pagination: {
         page,
         limit,
-        total: totalCount || 0,
-        totalPages: Math.ceil((totalCount || 0) / limit)
+        total: countResult.count || 0,
+        totalPages: Math.ceil((countResult.count || 0) / limit)
       }
     }
   } catch (error) {
@@ -628,12 +519,7 @@ export async function getServiceCategories() {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
   try {
@@ -641,26 +527,24 @@ export async function getServiceCategories() {
       .from('services')
       .select('category')
       .eq('status', 'active')
+      .not('category', 'is', null)
 
     if (error) throw error
 
     // Criar mapa de categorias únicas
     const categoryMap = new Map<string, { en: string; pt: string }>()
     
-    services?.forEach(service => {
-      if (service.category) {
-        // Como estamos salvando em PT, vamos detectar o idioma
+    services?.forEach((service: { category: string }) => {
+      if (service.category && !categoryMap.has(service.category)) {
         const categoryVersions = getBothCategoryVersions(service.category)
         categoryMap.set(service.category, categoryVersions)
       }
     })
 
-    const categories = Array.from(categoryMap.values()).sort((a, b) => a.pt.localeCompare(b.pt))
+    const categories = Array.from(categoryMap.values())
+      .sort((a, b) => a.pt.localeCompare(b.pt))
     
-    return {
-      success: true,
-      categories: categories
-    }
+    return { success: true, categories }
   } catch (error) {
     return { error: `Erro ao buscar categorias: ${error}` }
   }

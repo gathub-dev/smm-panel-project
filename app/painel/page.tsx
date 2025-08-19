@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -34,7 +35,9 @@ interface Service {
   name: string
   description: string
   provider: string
+  platform: string
   shop_category: string
+  combined_category: string
   quantities: number[]
   rate: number
   provider_rate: number
@@ -60,12 +63,26 @@ interface Order {
   link?: string
 }
 
+// Ícones por plataforma (nível 1)
+const platformIcons = {
+  Instagram: Heart,
+  TikTok: Users,
+  YouTube: Eye,
+  Facebook: Users,
+  Twitter: MessageCircle,
+  Spotify: BarChart3,
+  outros: Package
+}
+
+// Ícones por tipo de serviço (nível 2)
 const categoryIcons = {
   seguidores: Users,
   curtidas: Heart,
   visualizacoes: Eye,
   comentarios: MessageCircle,
-  estatisticas: BarChart3,
+  compartilhamentos: TrendingUp,
+  stories: Eye,
+  salvamentos: Package,
   outros: Package
 }
 
@@ -74,7 +91,9 @@ const categoryNames = {
   curtidas: "Curtidas", 
   visualizacoes: "Visualizações",
   comentarios: "Comentários",
-  estatisticas: "Estatísticas",
+  compartilhamentos: "Compartilhamentos",
+  stories: "Stories",
+  salvamentos: "Salvamentos",
   outros: "Outros"
 }
 
@@ -194,7 +213,9 @@ export default function PainelPage() {
 
     // Filtro de categoria
     if (selectedCategory !== "all") {
-      filtered = filtered.filter(service => service.shop_category === selectedCategory)
+      filtered = filtered.filter(service => 
+        (service.combined_category || service.platform) === selectedCategory
+      )
     }
 
     // Filtro de provedor
@@ -287,8 +308,13 @@ export default function PainelPage() {
   }
 
   const getUniqueCategories = () => {
-    const categories = [...new Set(services.map(s => s.shop_category))]
+    const categories = [...new Set(services.map(s => s.combined_category || s.platform))]
     return categories.filter(Boolean)
+  }
+  
+  const getUniquePlatforms = () => {
+    const platforms = [...new Set(services.map(s => s.platform))]
+    return platforms.filter(Boolean)
   }
 
   if (loading) {
@@ -365,7 +391,7 @@ export default function PainelPage() {
                         <SelectItem value="all">Todas as Categorias</SelectItem>
                         {getUniqueCategories().map(category => (
                           <SelectItem key={category} value={category}>
-                            {categoryNames[category as keyof typeof categoryNames] || category}
+                            {category}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -444,7 +470,7 @@ export default function PainelPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        {React.createElement(categoryIcons[service.shop_category as keyof typeof categoryIcons] || Package, { className: "h-5 w-5" })}
+                        {React.createElement(platformIcons[service.platform as keyof typeof platformIcons] || Package, { className: "h-5 w-5" })}
                         {service.name.substring(0, 40)}...
                       </CardTitle>
                       {service.featured && (
