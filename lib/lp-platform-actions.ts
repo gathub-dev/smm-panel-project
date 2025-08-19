@@ -257,23 +257,31 @@ export async function getAllPlatformsForSelect(): Promise<{ success: boolean; pl
     
     const supabase = createAdminClient()
     
+    // Primeiro testar se conseguimos acessar a tabela
     const { data: platforms, error } = await supabase
       .from('platforms')
-      .select('id, name, display_name')
-      .order('display_name', { ascending: true })
+      .select('*')
+    
+    console.log('📋 [LP-PLATFORMS] Dados brutos:', platforms)
+    console.log('📋 [LP-PLATFORMS] Erro:', error)
     
     if (error) {
       console.error('❌ [LP-PLATFORMS] Erro ao buscar plataformas:', error)
       return { success: false, error: error.message }
     }
     
-    const formattedPlatforms = (platforms || []).map(platform => ({
+    if (!platforms || platforms.length === 0) {
+      console.log('⚠️ [LP-PLATFORMS] Nenhuma plataforma encontrada na tabela')
+      return { success: true, platforms: [] }
+    }
+    
+    const formattedPlatforms = platforms.map(platform => ({
       id: platform.id,
-      name: platform.name,
-      display_name: platform.display_name || platform.name
+      name: platform.name || platform.display_name || 'Sem nome',
+      display_name: platform.display_name || platform.name || 'Sem nome'
     }))
     
-    console.log(`✅ [LP-PLATFORMS] Encontradas ${formattedPlatforms.length} plataformas para select`)
+    console.log(`✅ [LP-PLATFORMS] Encontradas ${formattedPlatforms.length} plataformas:`, formattedPlatforms)
     return { success: true, platforms: formattedPlatforms }
     
   } catch (error: any) {

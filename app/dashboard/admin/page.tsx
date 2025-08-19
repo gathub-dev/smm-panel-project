@@ -123,11 +123,13 @@ const AdminPage = () => {
     page: 1
   })
   const [categories, setCategories] = useState<string[]>([])
+  const [platforms, setPlatforms] = useState<{id: string; name: string; display_name: string}[]>([])
   const [editingService, setEditingService] = useState<any>(null)
   const [showEditSheet, setShowEditSheet] = useState(false)
   const [editForm, setEditForm] = useState({
     name: '',
     category: '',
+    platform_id: '',
     rate: 0,
     markup_type: 'percentage' as 'percentage' | 'fixed',
     markup_value: 20,
@@ -148,13 +150,10 @@ const AdminPage = () => {
 
   // Função de teste para debug
   const testSyncFunction = async () => {
-    console.log('🧪 TESTE: Função de sincronização chamada diretamente')
     try {
       const result = await syncAllServices()
-      console.log('📊 TESTE: Resultado:', result)
       return result
     } catch (error) {
-      console.log('❌ TESTE: Erro:', error)
       throw error
     }
   }
@@ -163,8 +162,7 @@ const AdminPage = () => {
   useEffect(() => {
     // @ts-ignore
     window.testSync = testSyncFunction
-    console.log('🔧 DEBUG: Função testSync() disponível no console')
-  }, [])
+    }, [])
 
   useEffect(() => {
     loadInitialData()
@@ -184,60 +182,59 @@ const AdminPage = () => {
         setServicesPagination(result.pagination)
       }
     } catch (error) {
-      console.error('Erro ao carregar serviços:', error)
     } finally {
       setServicesLoading(false)
     }
   }
 
   const loadInitialData = async () => {
-    console.log('🔄 CARREGANDO DADOS INICIAIS...')
     try {
-      // Carregar estatísticas de serviços
-      console.log('📊 Carregando estatísticas de serviços...')
-      const serviceResult = await getServiceStats()
-      console.log('Resultado serviços:', serviceResult)
+      console.log('📊 Carregando dados iniciais...')
+      
+      // Otimização: carregar dados em paralelo para melhor performance
+      const [serviceResult, categoriesResult, platformsResult, apiResult, syncResult] = await Promise.all([
+        getServiceStats(),
+        getServiceCategories(),
+        getAllPlatformsForSelect(),
+        getAPIKeysInfo(),
+        getSyncStats()
+      ])
+      
+      // Processar resultados
       if (serviceResult.success) {
         setServiceStats(serviceResult.stats)
       }
-
-      // Carregar categorias
-      console.log('📂 Carregando categorias...')
-      const categoriesResult = await getServiceCategories()
+      
       if (categoriesResult.success) {
         setCategories(categoriesResult.categories.map(cat => cat.pt))
       }
-
-      // Carregar informações das API keys
-      console.log('🔑 Carregando API keys...')
-      const apiResult = await getAPIKeysInfo()
-      console.log('Resultado API keys:', apiResult)
+      
+      if (platformsResult.success) {
+        console.log('🏢 Plataformas carregadas:', platformsResult.platforms?.length || 0)
+        setPlatforms(platformsResult.platforms || [])
+      } else {
+        console.error('❌ Erro ao carregar plataformas:', platformsResult.error)
+      }
+      
       if (apiResult.success) {
         setApiKeys(apiResult.apiKeys)
         console.log('✅ API Keys carregadas:', apiResult.apiKeys.length, 'chaves')
-      } else {
-        console.log('❌ Erro ao carregar API keys:', apiResult.error)
       }
-
-      // Carregar estatísticas de sincronização
-      console.log('🔄 Carregando stats de sync...')
-      const syncResult = await getSyncStats()
-      console.log('Resultado sync:', syncResult)
+      
       if (syncResult.success) {
         setSyncStats(syncResult.stats)
       }
-
-      // Testar conexões
-      console.log('🧪 Testando conexões...')
-      const connectionResult = await testAllAPIKeys()
-      console.log('Resultado conexões:', connectionResult)
-      if (connectionResult.success) {
-        setApiConnections(connectionResult.connections)
-        setProviderBalances(connectionResult.balances)
-        console.log('✅ Conexões testadas:', connectionResult.connections)
-      } else {
-        console.log('❌ Erro ao testar conexões:', connectionResult.error)
-      }
+      
+      // Testar conexões em segundo plano (não bloquear carregamento)
+      testAllAPIKeys().then(connectionResult => {
+        if (connectionResult.success) {
+          setApiConnections(connectionResult.connections)
+          setProviderBalances(connectionResult.balances)
+          console.log('✅ Conexões testadas:', connectionResult.connections)
+        }
+      }).catch(error => {
+        console.log('❌ Erro ao testar conexões:', error)
+      })
       
       console.log('🏁 DADOS CARREGADOS COM SUCESSO')
     } catch (error) {
@@ -246,41 +243,31 @@ const AdminPage = () => {
   }
 
   const handleSyncServices = async () => {
-    console.log('🎯 BOTÃO SINCRONIZAR CLICADO!')
-    console.log('Loading atual:', loading)
     
     setLoading(true)
     
     // Configurar atualização automática das estatísticas durante a sincronização
     const updateInterval = setInterval(async () => {
-      console.log('🔄 Atualizando estatísticas durante sincronização...')
       try {
         const serviceResult = await getServiceStats()
         if (serviceResult.success) {
           setServiceStats(serviceResult.stats)
-          console.log('📊 Estatísticas atualizadas:', serviceResult.stats)
         }
       } catch (error) {
-        console.log('⚠️ Erro ao atualizar estatísticas:', error)
       }
     }, 3000) // Atualizar a cada 3 segundos
     
     try {
-      console.log('📡 Chamando syncAllServices...')
       toast.info('Iniciando sincronização... O painel será atualizado automaticamente.')
       
       const result = await syncAllServices()
-      console.log('📊 Resultado da sincronização:', result)
       
       if (result.success) {
         toast.success(`${result.synced} serviços sincronizados com sucesso!`)
-        console.log('✅ Sucesso! Recarregando dados finais...')
       } else {
-        console.log('❌ Erro na sincronização:', result.error)
         toast.error(result.error)
       }
     } catch (error) {
-      console.log('💥 Erro fatal:', error)
       toast.error('Erro na sincronização')
     } finally {
       // Parar atualização automática
@@ -290,36 +277,28 @@ const AdminPage = () => {
       await loadInitialData()
       
       setLoading(false)
-      console.log('🏁 Sincronização finalizada')
     }
   }
 
   const handleTranslateServices = async () => {
-    console.log('🌐 BOTÃO TRADUZIR CLICADO!')
     
     setLoading(true)
     
     try {
-      console.log('📡 Chamando translateExistingServices...')
       toast.info('Traduzindo serviços existentes...')
       
       const result = await translateExistingServices()
-      console.log('📊 Resultado da tradução:', result)
       
       if (result.success) {
         toast.success(`${result.translated} serviços traduzidos com sucesso!`)
-        console.log('✅ Sucesso! Recarregando dados...')
-        await loadInitialData()
+          await loadInitialData()
       } else {
-        console.log('❌ Erro na tradução:', result.error)
         toast.error(result.error)
       }
     } catch (error) {
-      console.log('💥 Erro fatal:', error)
       toast.error('Erro na tradução')
     } finally {
       setLoading(false)
-      console.log('🏁 Tradução finalizada')
     }
   }
 
@@ -346,36 +325,24 @@ const AdminPage = () => {
       return
     }
 
-    console.log('🔍 INICIANDO SALVAMENTO DE CHAVE')
-    console.log('Provider:', selectedProvider)
-    console.log('Chave (primeiros 8 chars):', apiKeyInput.substring(0, 8) + '...')
-
     setLoading(true)
     try {
-      console.log('📡 Chamando saveAPIKey...')
       const result = await saveAPIKey(selectedProvider, apiKeyInput)
       
-      console.log('📊 RESULTADO DO SALVAMENTO:', result)
       
       if (result.success) {
-        console.log('✅ SUCESSO! Chave salva')
         toast.success(result.message)
         setShowAPIKeyModal(false)
         setApiKeyInput('')
         
-        console.log('🔄 Recarregando dados...')
         await loadInitialData()
-        console.log('✅ Dados recarregados')
       } else {
-        console.log('❌ ERRO no salvamento:', result.error)
         toast.error(result.error)
       }
     } catch (error) {
-      console.log('💥 ERRO FATAL:', error)
-      toast.error('Erro ao salvar chave')
+        toast.error('Erro ao salvar chave')
     } finally {
       setLoading(false)
-      console.log('🏁 Salvamento finalizado')
     }
   }
 
@@ -423,7 +390,6 @@ const AdminPage = () => {
 
   const handleToggleServiceStatus = async (serviceId: string, currentStatus: 'active' | 'inactive') => {
     try {
-      console.log(`🔄 [Admin] Toggle serviço ${serviceId}: ${currentStatus} → ${currentStatus === 'active' ? 'inactive' : 'active'}`)
       
       const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
       
@@ -438,19 +404,15 @@ const AdminPage = () => {
             service.id === serviceId 
               ? { ...service, status: newStatus }
               : service
-          )
-          console.log(`🔄 [Admin] Estado local atualizado para serviço ${serviceId}:`, 
-            updatedServices.find(s => s.id === serviceId)?.status)
+          )   
           return updatedServices
         })
         
         toast.success(`Serviço ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso`)
-        console.log(`✅ [Admin] Serviço ${serviceId} atualizado: status=${newStatus}`)
       } else {
         toast.error(result.error || 'Erro ao alterar status')
       }
     } catch (error: any) {
-      console.error(`❌ [Admin] Erro ao toggle serviço ${serviceId}:`, error)
       toast.error('Erro ao alterar status do serviço')
     }
   }
@@ -460,6 +422,7 @@ const AdminPage = () => {
     setEditForm({
       name: service.name,
       category: service.category,
+      platform_id: service.platform_id || '',
       rate: service.rate,
       markup_type: service.markup_type,
       markup_value: service.markup_value,
@@ -477,18 +440,7 @@ const AdminPage = () => {
     if (!editingService) return
 
     try {
-      console.log('🔧 [Admin] Salvando serviço:', {
-        id: editingService.id,
-        name: editForm.name,
-        markup_type: editForm.markup_type,
-        markup_value: editForm.markup_value,
-        status: editForm.status,
-        // Novos campos da loja
-        shop_category: editForm.shop_category,
-        quantities: editForm.quantities,
-        lp_visible: editForm.lp_visible,
-        featured: editForm.featured
-      })
+      
 
       const result = await updateService(editingService.id, {
         name: editForm.name,
@@ -503,8 +455,6 @@ const AdminPage = () => {
         featured: editForm.featured
       })
 
-      console.log('🔧 [Admin] Resultado do salvamento:', result)
-
       if (result.success) {
         toast.success('Serviço atualizado com sucesso!')
         setShowEditSheet(false)
@@ -515,7 +465,6 @@ const AdminPage = () => {
         toast.error(result.error || 'Erro ao atualizar serviço')
       }
     } catch (error: any) {
-      console.error('🔧 [Admin] Erro ao salvar serviço:', error)
       toast.error('Erro ao salvar serviço: ' + error.message)
     }
   }
@@ -1637,9 +1586,36 @@ const AdminPage = () => {
                 />
               </div>
 
-              {/* Categoria */}
+              {/* Plataforma */}
               <div className="space-y-2">
-                <Label htmlFor="service-category">Categoria</Label>
+                <Label htmlFor="service-platform">Plataforma</Label>
+                <Select
+                  value={editForm.platform_id}
+                  onValueChange={(value) => {
+                    console.log('🔄 Mudando platform_id para:', value)
+                    setEditForm(prev => ({ ...prev, platform_id: value }))
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma plataforma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {platforms.length === 0 && <SelectItem value="none" disabled>Nenhuma plataforma encontrada</SelectItem>}
+                    {platforms.map(platform => {
+                      console.log('🎯 Renderizando plataforma:', platform)
+                      return (
+                        <SelectItem key={platform.id} value={platform.id}>
+                          {platform.display_name}
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Categoria da Loja */}
+              <div className="space-y-2">
+                <Label htmlFor="service-category">Categoria da Loja</Label>
                 <Select
                   value={editForm.category}
                   onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value }))}

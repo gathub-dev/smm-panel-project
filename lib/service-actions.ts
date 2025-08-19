@@ -322,10 +322,11 @@ async function getOrCreateEntity(supabase: any, rpcName: string, params: any): P
 /**
  * Atualizar configurações de um serviço
  */
-export async function updateService(serviceId: string, data: {
+  export async function updateService(serviceId: string, data: {
   name?: string
   description?: string
-  markup_type?: 'percentage' | 'fixed'
+  markup_type?: 'percentage' | 'fixed'  
+  platform_id?: string
   markup_value?: number
   status?: 'active' | 'inactive'
   category_id?: string
@@ -507,6 +508,7 @@ export async function getServicesList(filters?: {
   status?: string
   category?: string
   search?: string
+  platform_id?: string    
   page?: number
   limit?: number
 }) {
@@ -547,7 +549,7 @@ export async function getServicesList(filters?: {
             id, provider, provider_service_id, name, description, category,
             provider_rate, rate, markup_type, markup_value,
             min_quantity, max_quantity, status, sync_enabled,
-            last_sync, created_at, updated_at
+            last_sync, created_at, updated_at, platform_id
           `)
           .order('created_at', { ascending: false })
       ).range(offset, offset + limit - 1),
@@ -669,8 +671,6 @@ export async function translateExistingServices(batchSize: number = 50) {
       return { success: true, message: 'Todos os serviços já estão traduzidos', translated: 0 }
     }
 
-    console.log(`🌍 Traduzindo ${services.length} serviços em segundo plano...`)
-    console.log(`📋 Serviços encontrados:`, services.map(s => `ID: ${s.id} - ${s.name}`))
     
     let translatedCount = 0
 
@@ -690,30 +690,15 @@ export async function translateExistingServices(batchSize: number = 50) {
             description: service.description,
             category: service.category
           })
-          
-          console.log(`📝 [TRANSLATE-BATCH] Resultado da tradução:`, {
-            original: service.name,
-            translated: translatedData.name,
-            changed: translatedData.name !== service.name
-          })
 
           // Sempre atualizar se há diferença entre original e traduzido
           const needsUpdate = translatedData.name !== service.name || 
                              translatedData.category !== service.category ||
                              (translatedData.description && translatedData.description !== service.description)
           
-          console.log(`🔍 [TRANSLATE-BATCH] Serviço ID ${service.id} precisa atualizar:`, needsUpdate)
-          console.log(`📊 [TRANSLATE-BATCH] Comparação:`, {
-            nomeOriginal: service.name,
-            nomeTraduzido: translatedData.name,
-            mudouNome: translatedData.name !== service.name,
-            categoriaOriginal: service.category,
-            categoriaTraduzida: translatedData.category,
-            mudouCategoria: translatedData.category !== service.category
-          })
+          
           
           if (needsUpdate) {
-            console.log(`💾 [TRANSLATE-BATCH] Atualizando serviço ID ${service.id} no banco...`)
             
             const updateData = {
               name: translatedData.name,
@@ -731,13 +716,9 @@ export async function translateExistingServices(batchSize: number = 50) {
               .eq('id', service.id)
 
             if (updateError) {
-              console.error(`❌ [TRANSLATE-BATCH] Erro ao atualizar serviço ID ${service.id}:`, updateError)
-            } else {
-              console.log(`✅ [TRANSLATE-BATCH] Serviço ID ${service.id} traduzido: "${service.name}" → "${translatedData.name}"`)
               translatedCount++
             }
-          } else {
-            console.log(`⏭️ [TRANSLATE-BATCH] Serviço ID ${service.id} já está em português ou não mudou`)
+          } else {  
             // Marcar como processado para não tentar novamente
             await supabase
               .from('services')
@@ -745,7 +726,7 @@ export async function translateExistingServices(batchSize: number = 50) {
               .eq('id', service.id)
           }
         } catch (error) {
-          console.log(`  ⚠️ Erro ao traduzir serviço ${service.id}:`, error)
+          
         }
       }))
 
