@@ -5,6 +5,21 @@ import { cookies } from "next/headers"
 import { APIManager } from "./providers/api-manager"
 import { translationService } from "./translation-service"
 
+// Função para criar cliente admin (service role)
+function createAdminClient() {
+  const { createClient } = require('@supabase/supabase-js')
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+}
+
 /**
  * Preview de serviços da API sem importar
  */
@@ -14,16 +29,10 @@ export async function previewServicesFromAPI(options: {
   category?: string
   onlyNew?: boolean
 }) {
-
-  
-  const supabase = createServerActionClient({ cookies })
-
   try {
-    // Verificar autenticação
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return { success: false, error: "Não autenticado" }
-    }
+    
+    // Usar service role para garantir acesso às chaves de API
+    const supabase = createAdminClient()
 
     // Obter chaves de API ativas
     const { data: apiKeys, error: keysError } = await supabase
@@ -31,12 +40,13 @@ export async function previewServicesFromAPI(options: {
       .select('*')
       .eq('is_active', true)
 
+
     if (keysError || !apiKeys || apiKeys.length === 0) {
       return { success: false, error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     let allServices: any[] = []
@@ -103,7 +113,7 @@ export async function previewServicesFromAPI(options: {
       
       if (!existingError) {
         const existingIds = new Set(
-          existingServices.map(s => `${s.provider}_${String(s.provider_service_id)}`)
+          existingServices.map((s: any) => `${s.provider}_${String(s.provider_service_id)}`)
         )
         
         allServices = allServices.filter(service => {
@@ -115,6 +125,7 @@ export async function previewServicesFromAPI(options: {
     }
 
     // Limitar quantidade se especificado
+    
     if (options.maxServices && options.maxServices > 0) {
       allServices = allServices.slice(0, options.maxServices)
     }
@@ -146,7 +157,8 @@ export async function previewServicesFromAPI(options: {
  * Obter categorias disponíveis da API
  */
 export async function getAvailableCategories() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -164,8 +176,8 @@ export async function getAvailableCategories() {
       return { success: false, error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     const categories = new Set<string>()

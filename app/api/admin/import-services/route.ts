@@ -7,8 +7,9 @@ export async function POST(request: NextRequest) {
   try {
     const { provider, services, translateOnImport = false } = await request.json()
 
-    // Verificar se é admin
-    const supabase = createServerActionClient({ cookies })
+    // Verificar se usuário está autenticado
+    const cookieStore = await cookies()
+    const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {

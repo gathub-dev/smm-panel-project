@@ -5,7 +5,8 @@ import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
 export async function createOrder(prevState: any, formData: FormData) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore })
 
   try {
     // Get current user
@@ -175,7 +176,8 @@ export async function createOrder(prevState: any, formData: FormData) {
 }
 
 export async function cancelOrder(orderId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore })
 
   try {
     const {

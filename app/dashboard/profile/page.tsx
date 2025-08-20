@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import ProfileForm from "@/components/profile-form"
 
 export default async function ProfilePage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

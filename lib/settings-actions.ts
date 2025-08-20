@@ -34,21 +34,34 @@ interface SettingResult {
   data?: any
 }
 
+// Lista de emails hardcoded como admin
+const HARDCODED_ADMIN_EMAILS = [
+  "lhost2025@gmail.com",
+  "admin@exemplo.com"
+]
+
 // Função para verificar se é admin
 async function checkAdminAccess() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
     return { success: false, error: "Usuário não autenticado" }
   }
 
-  // Primeiro, verificar no user_metadata (mais confiável)
-  if (user.user_metadata?.role === "admin") {
+  // Estratégia 0: Verificar emails hardcoded (prioridade máxima)
+  if (user.email && HARDCODED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    console.log("Admin verificado via email hardcoded")
     return { success: true, user }
   }
 
-  // Como fallback, verificar na tabela users
+  // Estratégia 1: Verificar no user_metadata (mais confiável)
+  if (user.user_metadata?.role === "admin") {
+    console.log("Admin verificado via user_metadata")
+    return { success: true, user }
+  }
+
+  // Estratégia 2: Como fallback, verificar na tabela users
   try {
     const { data: userData } = await supabase
       .from("users")
@@ -57,6 +70,7 @@ async function checkAdminAccess() {
       .single()
 
     if (userData?.role === "admin") {
+      console.log("Admin verificado via tabela users")
       return { success: true, user }
     }
   } catch (error) {
@@ -73,9 +87,10 @@ export async function getAllSettings(): Promise<SettingResult> {
     if (!adminCheck.success) {
       return adminCheck
     }
+    console.log("Admin verificado via tabela users")
 
     // Usar cliente normal ao invés de admin client
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: settings, error } = await supabase
       .from("settings")
       .select("*")

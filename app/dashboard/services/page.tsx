@@ -7,7 +7,7 @@ import { Instagram, Facebook, Twitter, Youtube, Music, Linkedin, Search, Filter 
 import ServiceCard from "@/components/service-card"
 
 export default async function ServicesPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

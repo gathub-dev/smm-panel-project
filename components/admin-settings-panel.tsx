@@ -90,10 +90,17 @@ export function AdminSettingsPanel() {
   }, [])
 
   const loadSettings = async () => {
+    console.log("🎯 FRONTEND: loadSettings() chamada")
     setLoading(true)
     try {
+      console.log("🔄 FRONTEND: Chamando getAllSettings()...")
       const result = await getAllSettings()
+      console.log("📨 FRONTEND: Resultado recebido:", result)
+      
       if (result.success) {
+        console.log("✅ FRONTEND: Sucesso! Configurações:", result.data.all.length)
+        console.log("📊 FRONTEND: Categorized:", Object.keys(result.data.categorized).map(key => `${key}: ${result.data.categorized[key].length}`))
+        
         setSettings(result.data.all)
         setCategorizedSettings(result.data.categorized)
         
@@ -104,9 +111,11 @@ export function AdminSettingsPanel() {
         })
         setEditedSettings(initialEdited)
       } else {
+        console.log("❌ FRONTEND: Erro no resultado:", result.error)
         toast.error(result.error || "Erro ao carregar configurações")
       }
     } catch (error) {
+      console.log("💥 FRONTEND: Exception:", error)
       toast.error("Erro ao carregar configurações")
     } finally {
       setLoading(false)

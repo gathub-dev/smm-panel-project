@@ -9,7 +9,8 @@ import { APIManager } from "./providers/api-manager"
  * Sincronizar status de todos os pedidos pendentes
  */
 export async function syncAllOrdersStatus() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Obter pedidos que precisam de sincronização
@@ -103,7 +104,8 @@ export async function syncAllOrdersStatus() {
  * Sincronizar status de um pedido específico
  */
 export async function syncOrderStatus(orderId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Obter pedido
@@ -176,7 +178,8 @@ export async function syncOrderStatus(orderId: string) {
  * Solicitar refill para um pedido
  */
 export async function requestOrderRefill(orderId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se usuário pode fazer refill
@@ -256,7 +259,8 @@ export async function requestOrderRefill(orderId: string) {
  * Cancelar pedido via API
  */
 export async function cancelOrderViaAPI(orderId: string) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se usuário pode cancelar
@@ -376,7 +380,8 @@ function mapProviderStatus(providerStatus: string): string {
  * Obter estatísticas de sincronização
  */
 export async function getSyncStats() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Pedidos pendentes de sincronização

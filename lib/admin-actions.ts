@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function promoteUserToAdmin(email: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     const { data, error } = await supabase.rpc("promote_user_to_admin", {
@@ -21,7 +21,7 @@ export async function promoteUserToAdmin(email: string) {
 }
 
 export async function demoteAdminToUser(email: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     const { data, error } = await supabase.rpc("demote_admin_to_user", {
@@ -38,24 +38,40 @@ export async function demoteAdminToUser(email: string) {
 }
 
 export async function checkIsAdmin() {
-  const supabase = createClient()
+  // Lista de emails hardcoded como admin
+  const HARDCODED_ADMIN_EMAILS = [
+    "lhost2025@gmail.com"
+  ]
+
+  const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return false
   
-  // Primeiro, verificar no user_metadata (mais confiável para autenticação do Supabase)
-  if (user.user_metadata?.role === "admin") { 
+  // Estratégia 0: Verificar emails hardcoded (prioridade máxima)
+  if (user.email && HARDCODED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    console.log("Admin verificado via email hardcoded")
     return true
   }
   
-  // Como fallback, verificar na tabela users
+  // Estratégia 1: Verificar no user_metadata (mais confiável para autenticação do Supabase)
+  if (user.user_metadata?.role === "admin") { 
+    console.log("Admin verificado via user_metadata")
+    return true
+  }
+  
+  // Estratégia 2: Como fallback, verificar na tabela users
   try {
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
-    return userData?.role === "admin"
+    if (userData?.role === "admin") {
+      console.log("Admin verificado via tabela users")
+      return true
+    }
   } catch (error) {
     console.log("Erro ao verificar role na tabela users:", error)
-    return false
   }
+  
+  return false
 }

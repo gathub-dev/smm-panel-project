@@ -7,7 +7,7 @@ import AddFundsModal from "@/components/add-funds-modal"
 import TransactionCard from "@/components/transaction-card"
 
 export default async function BalancePage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

@@ -10,13 +10,17 @@ export const isSupabaseConfigured =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
 
 // Create a cached version of the Supabase client for Server Components
-export const createClient = cache(() => {
+export const createClient = cache(async () => {
   if (!isSupabaseConfigured) {
-    const mockResponse = { data: null, error: new Error("Supabase not configured") }
+    const mockResponse = { data: null, error: new Error("Supabase not configured"), count: 0 }
     const mockChain = {
       eq: () => mockChain,
       single: () => Promise.resolve(mockResponse),
       order: () => Promise.resolve(mockResponse),
+      upsert: () => Promise.resolve(mockResponse),
+      insert: () => Promise.resolve(mockResponse),
+      update: () => Promise.resolve(mockResponse),
+      delete: () => Promise.resolve(mockResponse),
       ...mockResponse
     }
     
@@ -29,10 +33,16 @@ export const createClient = cache(() => {
       from: () => ({
         select: () => mockChain,
         update: () => mockChain,
+        insert: () => mockChain,
+        upsert: () => mockChain,
+        delete: () => mockChain,
         order: () => Promise.resolve(mockResponse)
       })
     }
   }
 
-  return createServerComponentClient({ cookies })
+  const cookieStore = await cookies()
+  return createServerComponentClient({ 
+    cookies: () => cookieStore 
+  } as any)
 })

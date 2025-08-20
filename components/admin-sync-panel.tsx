@@ -70,7 +70,7 @@ export function AdminSyncPanel() {
   const [importSettings, setImportSettings] = useState({
     provider: 'all' as 'all' | 'mtp' | 'jap',
     category: 'all',
-    maxServices: 50,
+    maxServices: 10,
     previewOnly: true,
     autoActivate: false,
     updateExisting: true
@@ -180,6 +180,10 @@ export function AdminSyncPanel() {
 
   // Preview de serviços antes de importar
   const handlePreviewServices = async () => {
+    console.log("🎯 PREVIEW: handlePreviewServices() chamada")
+    console.log("📋 PREVIEW: Configurações:", importSettings)
+    console.log("🔢 PREVIEW: maxServices =", importSettings.maxServices)
+    
     setPreviewLoading(true)
     setPreviewServices([])
     setPreviewStats(null)
@@ -190,6 +194,8 @@ export function AdminSyncPanel() {
         maxServices: importSettings.maxServices,
         category: importSettings.category === 'all' ? undefined : importSettings.category
       })
+      
+      console.log("📨 PREVIEW: Resultado recebido:", result)
       
       if (result.success) {
         setPreviewServices(result.services || [])

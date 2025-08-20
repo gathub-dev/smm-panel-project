@@ -44,7 +44,7 @@ export interface ImportControlResult {
  */
 export async function getPlatformsForImport(): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -81,7 +81,7 @@ export async function getPlatformsForImport(): Promise<ImportControlResult> {
  */
 export async function getServiceTypesForImport(): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -118,7 +118,7 @@ export async function getServiceTypesForImport(): Promise<ImportControlResult> {
  */
 export async function getImportCombinations(): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -159,7 +159,7 @@ export async function enableImportCombination(
   markupOverride?: number
 ): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -207,7 +207,7 @@ export async function enableMultipleCombinations(
   combinations: Array<{ platformName: string; serviceTypeName: string; markupOverride?: number }>
 ): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -277,7 +277,7 @@ export async function disableImportCombination(
   serviceTypeName: string
 ): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()
@@ -338,7 +338,7 @@ export async function disableImportCombination(
  */
 export async function getImportStats(): Promise<ImportControlResult> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Verificar se é admin
     const { data: { user } } = await supabase.auth.getUser()

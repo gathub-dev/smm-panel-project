@@ -139,7 +139,7 @@ export function AdminImportPreview({ open, onOpenChange }: AdminImportPreviewPro
     }
     
     // Limite de resultados
-    if (limitFilter !== 'all') {
+    if (limitFilter !== '10') {
       const limit = parseInt(limitFilter) || 100
       filtered = filtered.slice(0, limit)
     }

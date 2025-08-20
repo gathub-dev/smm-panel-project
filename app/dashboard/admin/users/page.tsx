@@ -11,7 +11,7 @@ export default async function AdminUsersPage() {
     redirect("/dashboard")
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data: users } = await supabase
     .from("users")

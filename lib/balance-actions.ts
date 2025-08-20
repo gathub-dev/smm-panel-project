@@ -5,7 +5,8 @@ import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 
 export async function addFunds(prevState: any, formData: FormData) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Get current user
@@ -72,7 +73,8 @@ export async function addFunds(prevState: any, formData: FormData) {
 }
 
 export async function processRefund(orderId: string, amount: number, reason: string) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     const {

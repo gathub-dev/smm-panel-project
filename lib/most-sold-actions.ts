@@ -22,7 +22,7 @@ export interface MostSoldService {
 
 export async function getMostSoldServices(limit: number = 10): Promise<MostSoldService[]> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await (supabase as any)
       .from('most_sold_services')
@@ -48,7 +48,7 @@ export async function getMostSoldServices(limit: number = 10): Promise<MostSoldS
 
 export async function getMostSoldByCategory(category: string, limit: number = 5): Promise<MostSoldService[]> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await (supabase as any)
       .from('most_sold_services')
@@ -75,7 +75,7 @@ export async function getMostSoldByCategory(category: string, limit: number = 5)
 
 export async function getOrdersStats() {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Total de pedidos nos últimos 30 dias
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

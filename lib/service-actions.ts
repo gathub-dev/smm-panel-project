@@ -16,7 +16,8 @@ import { translationService } from "./translation-service"
  * Traduzir um serviço específico pelo ID
  */
 export async function translateServiceById(serviceId: number) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar autenticação
@@ -72,7 +73,8 @@ export async function translateServiceById(serviceId: number) {
  * Sincronizar todos os serviços dos provedores
  */
 export async function syncAllServices() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar autenticação
@@ -389,7 +391,8 @@ export async function setBulkMarkup(
   markupType: 'percentage' | 'fixed',
   markupValue: number
 ) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar autenticação e permissão
@@ -656,7 +659,8 @@ export async function getServiceCategories() {
  * Traduzir serviços existentes que ainda não foram traduzidos
  */
 export async function translateExistingServices(batchSize: number = 50) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Buscar serviços que ainda não foram traduzidos

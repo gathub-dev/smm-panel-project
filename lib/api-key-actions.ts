@@ -13,7 +13,8 @@ export async function saveAPIKey(
   apiKey: string,
   apiUrl?: string
 ) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se é admin
@@ -99,7 +100,8 @@ export async function saveAPIKey(
  * Ativar/desativar chave de API
  */
 export async function toggleAPIKey(provider: 'mtp' | 'jap', isActive: boolean) {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se está autenticado
@@ -130,7 +132,8 @@ export async function toggleAPIKey(provider: 'mtp' | 'jap', isActive: boolean) {
  * Remover chave de API
  */
 export async function removeAPIKey(provider: 'mtp' | 'jap') {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se está autenticado
@@ -155,7 +158,8 @@ export async function removeAPIKey(provider: 'mtp' | 'jap') {
  * Testar todas as chaves de API - VERSÃO MELHORADA
  */
 export async function testAllAPIKeys() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se está autenticado
@@ -253,7 +257,8 @@ export async function testAllAPIKeys() {
  * Obter informações das chaves de API
  */
 export async function getAPIKeysInfo() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se está autenticado
@@ -282,7 +287,8 @@ export async function getAPIKeysInfo() {
  * Sincronizar saldos dos provedores
  */
 export async function syncProviderBalances() {
-  const supabase = createServerActionClient({ cookies })
+  const cookieStore = await cookies()
+  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
 
   try {
     // Verificar se está autenticado

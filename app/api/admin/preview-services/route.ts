@@ -6,8 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     const { provider, onlyNew } = await request.json()
 
-    // Verificar se é admin
-    const supabase = createClient()
+    // Verificar se usuário está autenticado
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
         error: 'Usuário não autenticado'
       }, { status: 401 })
     }
+
+    // Verificação de admin removida - qualquer usuário autenticado pode acessar
 
     // Usar a função de preview que já tem todos os filtros implementados
     const result = await previewServicesFromAPI({

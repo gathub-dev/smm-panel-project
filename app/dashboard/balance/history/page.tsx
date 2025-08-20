@@ -9,7 +9,7 @@ import Link from "next/link"
 import TransactionCard from "@/components/transaction-card"
 
 export default async function TransactionHistoryPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
