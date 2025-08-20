@@ -1,4 +1,4 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { cache } from "react"
 
@@ -13,16 +13,44 @@ export const isSupabaseConfigured =
 export const createClient = cache(async () => {
   if (!isSupabaseConfigured) {
     const mockResponse = { data: null, error: new Error("Supabase not configured"), count: 0 }
-    const mockChain = {
-      eq: () => mockChain,
+    
+    const createMockChain = (): any => ({
+      eq: () => createMockChain(),
+      neq: () => createMockChain(),
+      gt: () => createMockChain(),
+      gte: () => createMockChain(),
+      lt: () => createMockChain(),
+      lte: () => createMockChain(),
+      like: () => createMockChain(),
+      ilike: () => createMockChain(),
+      is: () => createMockChain(),
+      in: () => createMockChain(),
+      contains: () => createMockChain(),
+      containedBy: () => createMockChain(),
+      rangeGt: () => createMockChain(),
+      rangeGte: () => createMockChain(),
+      rangeLt: () => createMockChain(),
+      rangeLte: () => createMockChain(),
+      rangeAdjacent: () => createMockChain(),
+      overlaps: () => createMockChain(),
+      textSearch: () => createMockChain(),
+      match: () => createMockChain(),
+      not: () => createMockChain(),
+      or: () => createMockChain(),
+      filter: () => createMockChain(),
+      order: () => createMockChain(),
+      limit: () => createMockChain(),
+      range: () => createMockChain(),
+      abortSignal: () => createMockChain(),
       single: () => Promise.resolve(mockResponse),
-      order: () => Promise.resolve(mockResponse),
-      upsert: () => Promise.resolve(mockResponse),
-      insert: () => Promise.resolve(mockResponse),
-      update: () => Promise.resolve(mockResponse),
-      delete: () => Promise.resolve(mockResponse),
-      ...mockResponse
-    }
+      maybeSingle: () => Promise.resolve(mockResponse),
+      csv: () => Promise.resolve(mockResponse),
+      geojson: () => Promise.resolve(mockResponse),
+      explain: () => Promise.resolve(mockResponse),
+      rollback: () => Promise.resolve(mockResponse),
+      returns: () => createMockChain(),
+      then: () => Promise.resolve(mockResponse)
+    })
     
     return {
       auth: {
@@ -31,18 +59,36 @@ export const createClient = cache(async () => {
       },
       rpc: () => Promise.resolve(mockResponse),
       from: () => ({
-        select: () => mockChain,
-        update: () => mockChain,
-        insert: () => mockChain,
-        upsert: () => mockChain,
-        delete: () => mockChain,
-        order: () => Promise.resolve(mockResponse)
+        select: () => createMockChain(),
+        update: () => createMockChain(),
+        insert: () => createMockChain(),
+        upsert: () => createMockChain(),
+        delete: () => createMockChain()
       })
     }
   }
 
   const cookieStore = await cookies()
-  return createServerComponentClient({ 
-    cookies: () => cookieStore 
-  } as any)
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
+        },
+      },
+    }
+  )
 })

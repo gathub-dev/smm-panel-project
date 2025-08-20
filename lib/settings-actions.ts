@@ -34,12 +34,6 @@ interface SettingResult {
   data?: any
 }
 
-// Lista de emails hardcoded como admin
-const HARDCODED_ADMIN_EMAILS = [
-  "lhost2025@gmail.com",
-  "admin@exemplo.com"
-]
-
 // Função para verificar se é admin
 async function checkAdminAccess() {
   const supabase = await createClient()
@@ -49,19 +43,12 @@ async function checkAdminAccess() {
     return { success: false, error: "Usuário não autenticado" }
   }
 
-  // Estratégia 0: Verificar emails hardcoded (prioridade máxima)
-  if (user.email && HARDCODED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-    console.log("Admin verificado via email hardcoded")
-    return { success: true, user }
-  }
-
-  // Estratégia 1: Verificar no user_metadata (mais confiável)
+  // A verificação de admin deve ser feita apenas através do Supabase
   if (user.user_metadata?.role === "admin") {
     console.log("Admin verificado via user_metadata")
     return { success: true, user }
   }
 
-  // Estratégia 2: Como fallback, verificar na tabela users
   try {
     const { data: userData } = await supabase
       .from("users")
@@ -83,20 +70,23 @@ async function checkAdminAccess() {
 // Buscar todas as configurações
 export async function getAllSettings(): Promise<SettingResult> {
   try {
-    const adminCheck = await checkAdminAccess()
-    if (!adminCheck.success) {
-      return adminCheck
-    }
-    console.log("Admin verificado via tabela users")
-
+    console.log("🔍 getAllSettings: Iniciando...")
+    
     // Usar cliente normal ao invés de admin client
     const supabase = await createClient()
+    console.log("🔍 getAllSettings: Cliente criado")
+    
     const { data: settings, error } = await supabase
       .from("settings")
       .select("*")
       .order("key")
 
-    if (error) throw error
+    console.log("🔍 getAllSettings: Query executada", { settings: settings?.length, error })
+
+    if (error) {
+      console.log("🔍 getAllSettings: Erro na query:", error)
+      throw error
+    }
 
     // Organizar configurações por categoria
     const categorizedSettings: {

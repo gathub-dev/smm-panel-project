@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { previewServicesFromAPI } from '@/lib/preview-services-actions'
+import { checkIsAdmin } from '@/lib/admin-actions'
 
 export async function POST(request: NextRequest) {
   try {
     const { provider, onlyNew } = await request.json()
 
-    // Verificar se usuário está autenticado
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Usuário não autenticado'
-      }, { status: 401 })
+    // Verificar se o usuário é admin
+    const isAdmin = await checkIsAdmin()
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Acesso negado - apenas administradores",
+        },
+        { status: 403 }
+      )
     }
-
-    // Verificação de admin removida - qualquer usuário autenticado pode acessar
 
     // Usar a função de preview que já tem todos os filtros implementados
     const result = await previewServicesFromAPI({

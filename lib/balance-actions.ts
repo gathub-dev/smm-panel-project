@@ -1,15 +1,13 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function addFunds(prevState: any, formData: FormData) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
-    // Get current user
+    // Get current users
     const {
       data: { user },
       error: userError,
@@ -73,8 +71,7 @@ export async function addFunds(prevState: any, formData: FormData) {
 }
 
 export async function processRefund(orderId: string, amount: number, reason: string) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     const {

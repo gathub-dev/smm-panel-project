@@ -1,9 +1,18 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { APIManager } from "./providers/api-manager"
+
+interface APIKey {
+  id: string
+  provider: 'mtp' | 'jap'
+  api_key: string
+  api_url: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 /**
  * Adicionar ou atualizar chave de API
@@ -13,8 +22,7 @@ export async function saveAPIKey(
   apiKey: string,
   apiUrl?: string
 ) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se é admin
@@ -100,8 +108,7 @@ export async function saveAPIKey(
  * Ativar/desativar chave de API
  */
 export async function toggleAPIKey(provider: 'mtp' | 'jap', isActive: boolean) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se está autenticado
@@ -132,8 +139,7 @@ export async function toggleAPIKey(provider: 'mtp' | 'jap', isActive: boolean) {
  * Remover chave de API
  */
 export async function removeAPIKey(provider: 'mtp' | 'jap') {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se está autenticado
@@ -158,8 +164,7 @@ export async function removeAPIKey(provider: 'mtp' | 'jap') {
  * Testar todas as chaves de API - VERSÃO MELHORADA
  */
 export async function testAllAPIKeys() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se está autenticado
@@ -188,8 +193,8 @@ export async function testAllAPIKeys() {
     }
 
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: APIKey) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: APIKey) => key.provider === 'jap')?.api_key
 
     // Inicializar resultados
     const results: Record<'mtp' | 'jap', boolean> = {
@@ -257,8 +262,7 @@ export async function testAllAPIKeys() {
  * Obter informações das chaves de API
  */
 export async function getAPIKeysInfo() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se está autenticado
@@ -272,7 +276,7 @@ export async function getAPIKeysInfo() {
       .order('created_at', { ascending: false })
 
     // Mascarar as chaves para segurança
-    const maskedKeys = apiKeys?.map(key => ({
+    const maskedKeys = apiKeys?.map((key: APIKey) => ({
       ...key,
       api_key: key.api_key ? `${key.api_key.substring(0, 8)}...${key.api_key.slice(-4)}` : ''
     }))
@@ -287,8 +291,7 @@ export async function getAPIKeysInfo() {
  * Sincronizar saldos dos provedores
  */
 export async function syncProviderBalances() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se está autenticado
@@ -305,8 +308,8 @@ export async function syncProviderBalances() {
       return { error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: APIKey) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: APIKey) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     const balances: Record<string, number | null> = {}

@@ -1,7 +1,6 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { APIManager } from "./providers/api-manager"
 import { translationService } from "./translation-service"
 
@@ -157,8 +156,7 @@ export async function previewServicesFromAPI(options: {
  * Obter categorias disponíveis da API
  */
 export async function getAvailableCategories() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+    const supabase = await createClient()
 
   try {
     const { data: { user } } = await supabase.auth.getUser()

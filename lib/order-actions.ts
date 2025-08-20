@@ -1,13 +1,10 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function createOrder(prevState: any, formData: FormData) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
-
+  const supabase = await createClient()
   try {
     // Get current user
     const {
@@ -108,8 +105,8 @@ export async function createOrder(prevState: any, formData: FormData) {
         .eq("is_active", true)
 
       if (apiKeys && apiKeys.length > 0) {
-        const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-        const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+        const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+        const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
         if (service.provider && (mtpKey || japKey)) {
           const { APIManager } = await import("./providers/api-manager")
@@ -176,8 +173,7 @@ export async function createOrder(prevState: any, formData: FormData) {
 }
 
 export async function cancelOrder(orderId: string) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   try {
     const {

@@ -38,11 +38,6 @@ export async function demoteAdminToUser(email: string) {
 }
 
 export async function checkIsAdmin() {
-  // Lista de emails hardcoded como admin
-  const HARDCODED_ADMIN_EMAILS = [
-    "lhost2025@gmail.com"
-  ]
-
   const supabase = await createClient()
 
   const {
@@ -50,19 +45,12 @@ export async function checkIsAdmin() {
   } = await supabase.auth.getUser()
   if (!user) return false
   
-  // Estratégia 0: Verificar emails hardcoded (prioridade máxima)
-  if (user.email && HARDCODED_ADMIN_EMAILS.includes(user.email.toLowerCase())) {
-    console.log("Admin verificado via email hardcoded")
-    return true
-  }
-  
-  // Estratégia 1: Verificar no user_metadata (mais confiável para autenticação do Supabase)
+  // A verificação de admin deve ser feita apenas através do Supabase
   if (user.user_metadata?.role === "admin") { 
     console.log("Admin verificado via user_metadata")
     return true
   }
   
-  // Estratégia 2: Como fallback, verificar na tabela users
   try {
     const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single()
     if (userData?.role === "admin") {

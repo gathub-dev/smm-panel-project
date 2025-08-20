@@ -1,36 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { translationService } from '@/lib/translation-service'
+import { createClient } from '@/lib/supabase/server'
+import { checkIsAdmin } from '@/lib/admin-actions'
 
 export async function POST(request: NextRequest) {
   try {
     const { provider, services, translateOnImport = false } = await request.json()
 
-    // Verificar se usuário está autenticado
-    const cookieStore = await cookies()
-    const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'Usuário não autenticado'
-      }, { status: 401 })
+    // Verificar se o usuário é admin
+    const isAdmin = await checkIsAdmin()
+    if (!isAdmin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Acesso negado - apenas administradores",
+        },
+        { status: 403 }
+      )
     }
 
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single()
-
-    if (userData?.role !== "admin") {
-      return NextResponse.json({
-        success: false,
-        error: 'Acesso negado - apenas administradores'
-      }, { status: 403 })
-    }
+    // Criar cliente Supabase para operações no banco
+    const supabase = await createClient()
     
     let importedCount = 0
     let skippedCount = 0
@@ -93,8 +83,8 @@ export async function POST(request: NextRequest) {
         // Verificar se já existe
         const { data: existingService } = await supabase
           .from('services')
-          .select('id')
-          .eq('provider', provider)
+          .select('*')
+          .eq('provider', provider) 
           .eq('provider_service_id', service.service)
           .single()
         
@@ -127,7 +117,7 @@ export async function POST(request: NextRequest) {
         try {
           const { data: existingPlatform } = await supabase
             .from('platforms')
-            .select('id')
+            .select('*')
             .eq('name', platformName)
             .single()
           
@@ -137,12 +127,12 @@ export async function POST(request: NextRequest) {
             const { data: newPlatform, error: platformError } = await supabase
               .from('platforms')
               .insert({ name: platformName, slug: platformName.toLowerCase() })
-              .select('id')
+              .select()
               .single()
             
-            if (platformError) {
+            if (platformError || !newPlatform) {
               errorCount++
-              errors.push(`Erro ao criar plataforma ${platformName}: ${platformError.message}`)
+              errors.push(`Erro ao criar plataforma ${platformName}: ${platformError?.message || 'Dados não retornados'}`)
               continue
             }
             
@@ -160,7 +150,7 @@ export async function POST(request: NextRequest) {
         try {
           const { data: existingType } = await supabase
             .from('service_types')
-            .select('id')
+            .select('*')
             .eq('name', serviceTypeName)
             .single()
           
@@ -170,12 +160,12 @@ export async function POST(request: NextRequest) {
             const { data: newType, error: typeError } = await supabase
               .from('service_types')
               .insert({ name: serviceTypeName, slug: serviceTypeName.toLowerCase() })
-              .select('id')
+              .select()
               .single()
             
-            if (typeError) {
+            if (typeError || !newType) {
               errorCount++
-              errors.push(`Erro ao criar tipo de serviço ${serviceTypeName}: ${typeError.message}`)
+              errors.push(`Erro ao criar tipo de serviço ${serviceTypeName}: ${typeError?.message || 'Dados não retornados'}`)
               continue
             }
             

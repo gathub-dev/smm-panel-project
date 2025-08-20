@@ -1,7 +1,6 @@
 "use server"
 
-import { createServerActionClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { APIManager } from "./providers/api-manager"
 
@@ -9,8 +8,7 @@ import { APIManager } from "./providers/api-manager"
  * Sincronizar status de todos os pedidos pendentes
  */
 export async function syncAllOrdersStatus() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Obter pedidos que precisam de sincronização
@@ -36,8 +34,8 @@ export async function syncAllOrdersStatus() {
       return { error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     let updated = 0
@@ -104,8 +102,7 @@ export async function syncAllOrdersStatus() {
  * Sincronizar status de um pedido específico
  */
 export async function syncOrderStatus(orderId: string) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Obter pedido
@@ -129,8 +126,8 @@ export async function syncOrderStatus(orderId: string) {
       return { error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     
@@ -178,8 +175,7 @@ export async function syncOrderStatus(orderId: string) {
  * Solicitar refill para um pedido
  */
 export async function requestOrderRefill(orderId: string) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se usuário pode fazer refill
@@ -220,8 +216,8 @@ export async function requestOrderRefill(orderId: string) {
       return { error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     
@@ -259,8 +255,7 @@ export async function requestOrderRefill(orderId: string) {
  * Cancelar pedido via API
  */
 export async function cancelOrderViaAPI(orderId: string) {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Verificar se usuário pode cancelar
@@ -319,8 +314,8 @@ export async function cancelOrderViaAPI(orderId: string) {
       return { error: "Nenhuma chave de API configurada" }
     }
 
-    const mtpKey = apiKeys.find(key => key.provider === 'mtp')?.api_key
-    const japKey = apiKeys.find(key => key.provider === 'jap')?.api_key
+    const mtpKey = apiKeys.find((key: any) => key.provider === 'mtp')?.api_key
+    const japKey = apiKeys.find((key: any) => key.provider === 'jap')?.api_key
 
     const apiManager = new APIManager(mtpKey, japKey)
     
@@ -380,8 +375,7 @@ function mapProviderStatus(providerStatus: string): string {
  * Obter estatísticas de sincronização
  */
 export async function getSyncStats() {
-  const cookieStore = await cookies()
-  const supabase = createServerActionClient({ cookies: () => cookieStore } as any)
+  const supabase = await createClient()
 
   try {
     // Pedidos pendentes de sincronização
