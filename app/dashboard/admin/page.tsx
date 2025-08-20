@@ -41,37 +41,18 @@ import {
   XCircle,
   Pause,
   Play,
-  RotateCcw,
-  Filter,
-  Search,
-  MoreHorizontal,
-  ExternalLink,
-  Copy,
-  AlertCircle,
-  Info,
-  Star,
   Target,
-  Users2,
-  TrendingDown,
-  Calendar,
-  CreditCard,
-  Wallet,
-  Database,
-  Server,
-  Network,
+  Wallet
 } from "lucide-react"
 import { AdminUserManagement } from "@/components/admin-user-management"
-import { AdminNavigation } from "@/components/admin-navigation"
 import { AdminSettingsPanel } from "@/components/admin-settings-panel"
 import AdminLPPlatforms from "@/components/admin-lp-platforms"
 import { getAllPlatformsForSelect } from "@/lib/lp-platform-actions"
-import { AdminImportPreview } from "@/components/admin-import-preview"
 import { 
   syncAllServices, 
   updateService, 
   setBulkMarkup, 
   getServiceStats,
-  testAPIConnections,
   getServicesList,
   getServiceCategories,
   translateExistingServices
@@ -79,7 +60,6 @@ import {
 import { 
   saveAPIKey, 
   toggleAPIKey, 
-  removeAPIKey, 
   testAllAPIKeys,
   getAPIKeysInfo,
   syncProviderBalances 

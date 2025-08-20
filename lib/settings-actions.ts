@@ -72,9 +72,15 @@ export async function getAllSettings(): Promise<SettingResult> {
   try {
     console.log("🔍 getAllSettings: Iniciando...")
     
-    // Usar cliente normal ao invés de admin client
-    const supabase = await createClient()
-    console.log("🔍 getAllSettings: Cliente criado")
+    // Garantir que apenas admins possam ler todas as configurações
+    const adminCheck = await checkAdminAccess()
+    if (!adminCheck.success) {
+      return adminCheck
+    }
+
+    // Usar cliente com service role para evitar erros de policy/role
+    const supabase = createAdminClient()
+    console.log("🔍 getAllSettings: Admin client criado")
     
     const { data: settings, error } = await supabase
       .from("settings")
@@ -105,7 +111,7 @@ export async function getAllSettings(): Promise<SettingResult> {
       system: []
     }
 
-    settings?.forEach(setting => {
+    settings?.forEach((setting: any) => {
       const key = setting.key.toLowerCase()
       
       // Pular configurações que são exibidas na seção especial de câmbio
